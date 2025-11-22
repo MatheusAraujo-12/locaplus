@@ -1,5 +1,19 @@
 // components/ExpensesTable.js
 
+const toDate = (value) => {
+  if (!value) return null;
+  if (value?.toDate) return value.toDate();
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') return new Date(value.includes('T') ? value : `${value}T00:00:00`);
+  return null;
+};
+
+const formatDate = (value) => {
+  const d = toDate(value);
+  if (!d || Number.isNaN(d.getTime())) return '-';
+  return d.toLocaleDateString('pt-BR');
+};
+
 const ExpensesTable = ({ expenses = [], onEdit, onDelete }) => {
   return (
     <table className="w-full text-left min-w-[500px]">
@@ -14,7 +28,7 @@ const ExpensesTable = ({ expenses = [], onEdit, onDelete }) => {
       <tbody>
         {expenses.length > 0 ? expenses.map(e => (
           <tr key={e.id} className="border-b">
-            <td className="p-2 whitespace-nowrap">{new Date(e.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
+            <td className="p-2 whitespace-nowrap">{formatDate(e.date)}</td>
             <td className="p-2"><span className="text-xs uppercase font-bold bg-gray-200 text-gray-600 px-2 py-1 rounded-full">{e.category}</span></td>
             <td className="p-2 font-semibold text-right whitespace-nowrap">R$ {Number(e.cost || 0).toFixed(2)}</td>
             {(onEdit || onDelete) && (

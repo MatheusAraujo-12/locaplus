@@ -148,13 +148,19 @@ const CarDetailsPage = ({ user, userData, showAlert, carId, goBack, db, auth, ap
   }, [revenues, expenses, selectedCar?.commissionPercentage]);
 
   const visibleChecklists = useMemo(() => checklists, [checklists]);
-  const maintenanceExpenses = useMemo(
-    () =>
-      expenses.filter((e) =>
-        String(e.category || '').toLowerCase().startsWith('manuten')
-      ),
-    [expenses]
-  );
+  const maintenanceExpenses = useMemo(() => {
+    return expenses.filter((e) => {
+      const cat = String(e.category || '').toLowerCase();
+      const isMaintCat = cat.includes('manuten');
+      const hasMaintItems =
+        Array.isArray(e.items) &&
+        e.items.some((it) => {
+          const t = String(it.type || '').toLowerCase();
+          return t.includes('peca') || t.includes('serv');
+        });
+      return isMaintCat || hasMaintItems;
+    });
+  }, [expenses]);
 
   // Actions
   const handleSaveCar = async (carData) => {
