@@ -515,7 +515,7 @@ const CarDetailsPage = ({ user, userData, showAlert, carId, goBack, db, auth, ap
                   </div>
                   <div>
                     <h3 className="font-bold text-lg mb-2">Histórico de Despesas</h3>
-                    <ExpensesTable expenses={filteredExpenses} />
+                    <ExpensesTable expenses={filteredExpenses} onEdit={openExpenseModalForEdit} onDelete={handleDeleteExpense} />
                   </div>
                 </div>
               </div>
@@ -529,7 +529,7 @@ const CarDetailsPage = ({ user, userData, showAlert, carId, goBack, db, auth, ap
                     {maintenanceExpenses.length} registro(s)
                   </span>
                 </div>
-                <ExpensesTable expenses={maintenanceExpenses} />
+                <ExpensesTable expenses={maintenanceExpenses} onEdit={openExpenseModalForEdit} onDelete={handleDeleteExpense} />
               </div>
             )}
 

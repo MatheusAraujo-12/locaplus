@@ -1,6 +1,6 @@
 // components/ExpensesTable.js
 
-const ExpensesTable = ({ expenses = [] }) => {
+const ExpensesTable = ({ expenses = [], onEdit, onDelete }) => {
   return (
     <table className="w-full text-left min-w-[500px]">
       <thead>
@@ -8,6 +8,7 @@ const ExpensesTable = ({ expenses = [] }) => {
           <th className="p-3">Data</th>
           <th className="p-3">Categoria</th>
           <th className="p-3 text-right">Custo</th>
+          {(onEdit || onDelete) && <th className="p-3 text-right">Ações</th>}
         </tr>
       </thead>
       <tbody>
@@ -16,14 +17,35 @@ const ExpensesTable = ({ expenses = [] }) => {
             <td className="p-2 whitespace-nowrap">{new Date(e.date + 'T00:00:00').toLocaleDateString('pt-BR')}</td>
             <td className="p-2"><span className="text-xs uppercase font-bold bg-gray-200 text-gray-600 px-2 py-1 rounded-full">{e.category}</span></td>
             <td className="p-2 font-semibold text-right whitespace-nowrap">R$ {Number(e.cost || 0).toFixed(2)}</td>
+            {(onEdit || onDelete) && (
+              <td className="p-2 text-right whitespace-nowrap space-x-2">
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => onEdit(e)}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-semibold"
+                  >
+                    Ver/Editar
+                  </button>
+                )}
+                {onDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(e.id)}
+                    className="text-red-600 hover:text-red-800 text-sm font-semibold"
+                  >
+                    Excluir
+                  </button>
+                )}
+              </td>
+            )}
           </tr>
         )) : (
           <tr>
-            <td colSpan="3" className="text-center p-4 text-gray-500">Nenhuma despesa.</td>
+            <td colSpan={onEdit || onDelete ? 4 : 3} className="text-center p-4 text-gray-500">Nenhuma despesa.</td>
           </tr>
         )}
       </tbody>
     </table>
   );
 };
-
