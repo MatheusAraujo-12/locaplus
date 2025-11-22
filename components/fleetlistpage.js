@@ -146,7 +146,7 @@ const FleetListPage = ({ user, userData, showAlert, onSelectCar, db, appInstance
                       event.stopPropagation();
                       handleDeleteCar(car);
                     }}
-                    className="absolute top-3 right-3 text-red-500 hover:text-red-700"
+                    className="absolute top-0 right-1 text-red-500 hover:text-red-700"
                     title="Apagar veículo"
                   >
                     <i className="fas fa-trash" />
