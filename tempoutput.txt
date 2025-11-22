@@ -1,0 +1,136 @@
+const AppContent = ({ user, userData }) => {
+    const { useState, useEffect } = React;
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    const { companyType, role, email, companyName } = userData;
+    const isAdmin = role === "admin";
+    const isRentalCompany = companyType === "locadora";
+
+    useEffect(() => {
+      document.body.style.overflow = isSidebarOpen ? "hidden" : "auto";
+      return () => { document.body.style.overflow = "auto"; };
+    }, [isSidebarOpen]);
+
+    const handleNavigate = (page, id = null) => {
+      navigate(page, id);
+      setIsSidebarOpen(false);
+    };
+
+            const TITLES = {
+      dashboard: "Dashboard",
+      drivers: "Motoristas",
+      fleet: "Minha Frota",
+      carDetails: "Detalhes do Veículo",
+      stock: "Estoque",
+      "price-comparator": "Comparador de Preços",
+      reports: "Relatórios",
+    };
+
+    let pageContent;
+    switch (currentPage) {
+      case "dashboard":
+        pageContent = (
+          <DashboardPage
+            userData={userData}
+            onNavigate={handleNavigate}
+            db={db}
+            appInstanceId={appInstanceId}
+            basePath={basePath}
+            showAlert={showAlert}
+          />
+        );
+        break;
+      case \"drivers\":
+        pageContent = (
+          <DriversPage
+            userData={userData}
+            onNavigate={handleNavigate}
+            db={db}
+            appInstanceId={appInstanceId}
+            basePath={basePath}
+            showAlert={showAlert}
+          />
+        );
+        break;
+      
+      case "stock":
+        pageContent = (
+          <StockReportPage
+            userData={userData}
+            db={db}
+            appInstanceId={appInstanceId}
+            basePath={basePath}
+            showAlert={showAlert}
+          />
+        );
+        break;
+      case "price-comparator":
+        pageContent = (
+          <PriceComparatorPage
+            userData={userData}
+            db={db}
+            appInstanceId={appInstanceId}
+            basePath={basePath}
+            showAlert={showAlert}
+          />
+        );
+        break;
+      case "carDetails":
+        pageContent = (
+          <CarDetailsPage
+            user={user}
+            userData={userData}
+            showAlert={showAlert}
+            carId={selectedId}
+            goBack={() => handleNavigate("fleet")}
+            db={db}
+            auth={auth}
+            appInstanceId={appInstanceId}
+            basePath={basePath}
+          />
+        );
+        break;
+      case "reports":
+        pageContent = (
+          <ReportsPage
+            userData={userData}
+            showAlert={showAlert}
+            db={db}
+            appInstanceId={appInstanceId}
+            basePath={basePath}
+          />
+        );
+        break;
+      case "fleet":
+      default:
+        pageContent = (
+          <FleetListPage
+            user={user}
+            userData={userData}
+            showAlert={showAlert}
+            onSelectCar={(id) => handleNavigate("carDetails", id)}
+            db={db}
+            appInstanceId={appInstanceId}
+            basePath={basePath}
+          />
+        );
+    }
+
+    return (
+      <div className="min-h-screen bg-gray-100">
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-20"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar (Drawer) */}
+        <div
+          className={`fixed inset-y-0 left-0 transform ${
+            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } transition-transform duration-300 ease-in-out w-64 bg-white shadow-lg flex flex-col z-30 no-print`}
+        >
+          <div className="p-6 border-b">
+            <h2 className="text-xl font-bold text-blue-900">{companyName || "Meu Painel"}</h2>
+            <p className="text-sm text-gray-500">{email}</

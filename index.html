@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Veículos</title>
+    <!-- Bibliotecas Externas -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .modal-enter { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .tab-active { border-color: #2563eb; color: #2563eb; }
+        .sidebar-link.active { background-color: #eef2ff; color: #1d4ed8; font-weight: 600; }
+        @media print {
+            .no-print { display: none !important; }
+            body > #root { display: none !important; }
+            .print-container { display: block !important; }
+            .print-container > .print-content {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+    <div class="print-container"></div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, doc, onSnapshot, query, updateDoc, where, getDocs, orderBy, setDoc, deleteDoc, getDoc, increment, collectionGroup, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+    window.firebase = { initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, getFirestore, collection, addDoc, doc, onSnapshot, query, updateDoc, where, getDocs, orderBy, setDoc, deleteDoc, getDoc, getStorage, ref, uploadBytes, getDownloadURL, increment, collectionGroup, arrayUnion };
+</script>
+    <!-- Carregamento dos Componentes em Ordem CORRETA -->
+    <script type="text/babel" data-presets="env,react" src="components/AuthScreen.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/LoadingSpinner.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/CustomAlert.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/DeleteConfirmationModal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/CarFormModal.js"></script>
+    <!-- Recursos de mapa e controle de viagem removidos -->
+    <script type="text/babel" data-presets="env,react" src="components/CarDetailsHeader.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/DriverFormModal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/DriversPage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/ExpensesTable.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/RevenuesTable.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/RemindersTable.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/ChecklistsList.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/ExpenseFormModal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/RevenueFormModal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/ReminderFormModal.js"></script>
+    
+    <script type="text/babel" data-presets="env,react" src="components/RoutineChecklistModal.js?v=4"></script>
+    <script type="text/babel" data-presets="env,react" src="components/DeliveryChecklistModal.js"></script>
+    
+    <script type="text/babel" data-presets="env,react" src="components/CarDetailsPage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/MaintenanceItemManager.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/MultiItemSelector.js"></script> 
+    <script type="text/babel" data-presets="env,react" src="components/FleetListPage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/ReportsPage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/StockReportPage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/PriceComparatorPage.js"></script>
+    
+    <script type="text/babel" data-presets="env,react" src="components/WorkshopManager.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/DashboardPage.js"></script>
+    
+    <!-- O App.js deve ser o ÚLTIMO componente a ser carregado -->
+    <script type="text/babel" data-presets="env,react" src="components/App.js?v=2"></script>
+    
+    <script type="text/babel">
+        // 1. Defina suas configurações
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-FH6kF0XyvHY3E1xf3Ca0cBL0RYA1GYw",
+            authDomain: "silicon-parity-462518-p1.firebaseapp.com",
+            projectId: "silicon-parity-462518-p1",
+            storageBucket: "gs://silicon-parity-462518-p1.firebasestorage.app", // Verifique se o domínio está correto, geralmente termina com .appspot.com
+            messagingSenderId: "923422896960",
+            appId: "1:923422896960:web:4a7985a1cef9cec10080a5",
+        };
+
+        // 2. Pegue as funções do objeto global que você criou
+        const { 
+            initializeApp, 
+            getAuth, 
+            getFirestore,
+            getStorage 
+        } = window.firebase;
+
+        // 3. INICIALIZE O FIREBASE - Este é o passo crucial que faltava
+        const app = initializeApp(firebaseConfig);
+
+        // 4. Crie instâncias dos serviços e as coloque no window para fácil acesso
+        // Agora seus componentes podem usar essas variáveis diretamente.
+        window.firebaseApp = app;
+        window.firebaseAuth = getAuth(app);
+        window.firebaseDb = getFirestore(app);
+        window.firebaseStorage = getStorage(app);
+        window.firebase_config = firebaseConfig;
+        
+        // Variável extra que você tinha
+        window.app_instance_id = "5Uoss8SuxxMftQhEbzgn";
+
+        // 5. AGORA SIM, renderize o App React, pois o Firebase já está pronto!
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
+
