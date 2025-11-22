@@ -148,6 +148,13 @@ const CarDetailsPage = ({ user, userData, showAlert, carId, goBack, db, auth, ap
   }, [revenues, expenses, selectedCar?.commissionPercentage]);
 
   const visibleChecklists = useMemo(() => checklists, [checklists]);
+  const maintenanceExpenses = useMemo(
+    () =>
+      expenses.filter((e) =>
+        String(e.category || '').toLowerCase().startsWith('manuten')
+      ),
+    [expenses]
+  );
 
   // Actions
   const handleSaveCar = async (carData) => {
@@ -511,6 +518,18 @@ const CarDetailsPage = ({ user, userData, showAlert, carId, goBack, db, auth, ap
                     <ExpensesTable expenses={filteredExpenses} />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'maintenance' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-lg">Histórico de Manutenção</h3>
+                  <span className="text-sm text-gray-500">
+                    {maintenanceExpenses.length} registro(s)
+                  </span>
+                </div>
+                <ExpensesTable expenses={maintenanceExpenses} />
               </div>
             )}
 
