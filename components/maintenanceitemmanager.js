@@ -1,16 +1,3 @@
-import React, { useEffect, useState } from 'react';
-import {
-    collection,
-    query,
-    onSnapshot,
-    addDoc,
-    deleteDoc,
-    doc,
-    orderBy,
-    updateDoc,
-    increment,
-} from '../firebaseClient';
-
 const normalizeType = (value = '') =>
     value
         .normalize('NFD')
@@ -20,6 +7,8 @@ const normalizeType = (value = '') =>
 const isPartItem = (item) => normalizeType(item?.type || '').startsWith('peca');
 
 const MaintenanceItemManager = ({ db, basePath, onClose, showAlert }) => {
+    const { useEffect, useState } = React;
+    const { collection, query, onSnapshot, addDoc, deleteDoc, doc, orderBy, updateDoc, increment } = window.firebase;
     const [items, setItems] = useState([]);
     const [newItemData, setNewItemData] = useState({ name: '', price: '', type: 'Peça' });
     const [stockToAdd, setStockToAdd] = useState({});
@@ -231,4 +220,4 @@ const MaintenanceItemManager = ({ db, basePath, onClose, showAlert }) => {
     );
 };
 
-export default MaintenanceItemManager;
+window.MaintenanceItemManager = MaintenanceItemManager;

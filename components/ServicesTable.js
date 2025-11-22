@@ -1,5 +1,3 @@
-import React from 'react';
-
 const toDate = (value) => {
     if (!value) return null;
     if (value?.toDate) return value.toDate();
@@ -54,4 +52,4 @@ const ServicesTable = ({ services = [], onDelete, isAdmin }) => {
     );
 };
 
-export default ServicesTable;
+window.ServicesTable = ServicesTable;

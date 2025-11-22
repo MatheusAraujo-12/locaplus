@@ -1,10 +1,3 @@
-import React, { useState } from 'react';
-import {
-  collection,
-  getDocs,
-  addDoc,
-} from '../firebaseClient';
-
 // Helper genérico para CSV
 const parseCsv = (text) => {
   const lines = String(text)
@@ -393,6 +386,8 @@ async function importMaintenanceFromFiles(maintenanceFile, serviceFile, db, base
 
 // Componente de modal
 const ImportDataModal = ({ isOpen, onClose, db, basePath, companyId, showAlert }) => {
+  const { useState } = React;
+  const { collection, getDocs, addDoc } = window.firebase;
   const [carFile, setCarFile] = useState(null);
   const [maintenanceFile, setMaintenanceFile] = useState(null);
   const [serviceFile, setServiceFile] = useState(null);
@@ -569,4 +564,5 @@ const ImportDataModal = ({ isOpen, onClose, db, basePath, companyId, showAlert }
   );
 };
 
-export default ImportDataModal;
+window.ImportDataModal = ImportDataModal;
+

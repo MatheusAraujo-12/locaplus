@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-
-// components/MultiItemSelector.js - VERSÃO COM CONTROLE DE QUANTIDADE
+// components/MultiItemSelector.js - VERSA�O COM CONTROLE DE QUANTIDADE
 
 const MultiItemSelector = ({ allItems, selectedItems, onSelectionChange, onQuantityChange }) => {
+    const { useEffect, useMemo, useRef, useState } = React;
     const [searchTerm, setSearchTerm] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const wrapperRef = useRef(null);
@@ -43,7 +42,7 @@ const MultiItemSelector = ({ allItems, selectedItems, onSelectionChange, onQuant
 
     return (
         <div className="relative md:col-span-2" ref={wrapperRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Itens/Serviços</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Itens/ServiA�os</label>
             <div className="w-full bg-gray-100 p-2 rounded-lg border focus-within:ring-2 focus-within:ring-blue-500 flex flex-col gap-2 min-h-[48px]">
                 <div className="flex flex-col gap-2">
                     {selectedItems.map((item, index) => (
@@ -87,4 +86,4 @@ const MultiItemSelector = ({ allItems, selectedItems, onSelectionChange, onQuant
     );
 };
 
-export default MultiItemSelector;
+window.MultiItemSelector = MultiItemSelector;

@@ -41,43 +41,42 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, doc, onSnapshot, query, updateDoc, where, getDocs, orderBy, setDoc, deleteDoc, getDoc, increment, collectionGroup, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-    window.firebase = { initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, getFirestore, collection, addDoc, doc, onSnapshot, query, updateDoc, where, getDocs, orderBy, setDoc, deleteDoc, getDoc, getStorage, ref, uploadBytes, getDownloadURL, increment, collectionGroup, arrayUnion };
+    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+    window.firebase = { initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, getFirestore, collection, addDoc, doc, onSnapshot, query, updateDoc, where, getDocs, orderBy, setDoc, deleteDoc, getDoc, getStorage, ref, uploadBytes, getDownloadURL, deleteObject, increment, collectionGroup, arrayUnion };
 </script>
     <!-- Carregamento dos Componentes em Ordem CORRETA -->
-    <script type="text/babel" data-presets="env,react" src="components/AuthScreen.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/LoadingSpinner.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/CustomAlert.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/DeleteConfirmationModal.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/CarFormModal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/authscreen.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/loadingspinner.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/customalert.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/deleteconfirmationmodal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/carformmodal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/ImportDataModal.js"></script>
     <!-- Recursos de mapa e controle de viagem removidos -->
-    <script type="text/babel" data-presets="env,react" src="components/CarDetailsHeader.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/DriverFormModal.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/DriversPage.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/ExpensesTable.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/RevenuesTable.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/RemindersTable.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/ChecklistsList.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/ExpenseFormModal.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/RevenueFormModal.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/ReminderFormModal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/cardetailsheader.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/driverformmodal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/multiitemselector.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/expenseformmodal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/revenueformmodal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/reminderformmodal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/expensestable.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/revenuestable.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/reminderstable.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/checklistslist.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/routinechecklistmodal.js?v=4"></script>
+    <script type="text/babel" data-presets="env,react" src="components/deliverychecklistmodal.js"></script>
     
-    <script type="text/babel" data-presets="env,react" src="components/RoutineChecklistModal.js?v=4"></script>
-    <script type="text/babel" data-presets="env,react" src="components/DeliveryChecklistModal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/cardetailspage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/maintenanceitemmanager.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/fleetlistpage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/driverspage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/reportspage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/stockreportpage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/pricecomparatorpage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/workshopmanager.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/dashboardpage.js"></script>
     
-    <script type="text/babel" data-presets="env,react" src="components/CarDetailsPage.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/MaintenanceItemManager.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/MultiItemSelector.js"></script> 
-    <script type="text/babel" data-presets="env,react" src="components/FleetListPage.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/ReportsPage.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/StockReportPage.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/PriceComparatorPage.js"></script>
-    
-    <script type="text/babel" data-presets="env,react" src="components/WorkshopManager.js"></script>
-    <script type="text/babel" data-presets="env,react" src="components/DashboardPage.js"></script>
-    
-    <!-- O App.js deve ser o ÚLTIMO componente a ser carregado -->
-    <script type="text/babel" data-presets="env,react" src="components/App.js?v=2"></script>
+    <!-- O App.js deve ser o AsLTIMO componente a ser carregado -->
+    <script type="text/babel" data-presets="env,react" src="components/app.js?v=2"></script>
     
     <script type="text/babel">
         // 1. Defina suas configurações
@@ -117,4 +116,5 @@
     </script>
 </body>
 </html>
+
 

@@ -1,19 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import {
-  collection,
-  query,
-  onSnapshot,
-  addDoc,
-  doc,
-  updateDoc,
-  deleteDoc,
-  getDocs,
-} from '../firebaseClient';
-import CarFormModal from './CarFormModal';
-import LoadingSpinner from './LoadingSpinner';
-import ImportDataModal from './ImportDataModal'; // <--- NOVO
+// components/FleetListPage.js
 
 const FleetListPage = ({ user, userData, showAlert, onSelectCar, db, appInstanceId }) => {
+  const { useEffect, useState } = React;
+  const { collection, query, onSnapshot, addDoc, doc, updateDoc, deleteDoc, getDocs } = window.firebase;
   const [cars, setCars] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -211,4 +200,4 @@ const FleetListPage = ({ user, userData, showAlert, onSelectCar, db, appInstance
   );
 };
 
-export default FleetListPage;
+window.FleetListPage = FleetListPage;

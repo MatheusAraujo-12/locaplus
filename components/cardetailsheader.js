@@ -1,5 +1,3 @@
-import React from 'react';
-
 const CarDetailsHeader = ({
   goBack,
   dueReminders = [],
@@ -86,5 +84,3 @@ const CarDetailsHeader = ({
     </>
   );
 };
-
-export default CarDetailsHeader;

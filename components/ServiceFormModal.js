@@ -1,5 +1,3 @@
-import React, { useEffect, useState } from 'react';
-
 const toInputDate = (value) => {
     if (!value) return new Date().toISOString().slice(0, 10);
     if (typeof value === 'string') return value.slice(0, 10);
@@ -9,6 +7,7 @@ const toInputDate = (value) => {
 };
 
 const ServiceFormModal = ({ onClose, onSave, service = null, defaultMileage = '' }) => {
+    const { useEffect, useState } = React;
     const [formData, setFormData] = useState({
         date: new Date().toISOString().slice(0, 10),
         serviceName: '',
@@ -126,4 +125,4 @@ const ServiceFormModal = ({ onClose, onSave, service = null, defaultMileage = ''
     );
 };
 
-export default ServiceFormModal;
+window.ServiceFormModal = ServiceFormModal;
