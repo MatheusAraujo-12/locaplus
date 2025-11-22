@@ -1,4 +1,4 @@
-// components/App.js - VERSÃO REVISADA (modular + basePath + header title)
+// components/App.js - versão para uso com Babel no browser
 
 const App = () => {
   const { useState, useEffect, useMemo, useCallback } = React;
@@ -50,7 +50,8 @@ const App = () => {
   const showAlert = useCallback((message, type) => {
     setAlertMessage({ message, type });
     const t = setTimeout(() => setAlertMessage(null), 5000);
-    // Nota: se quiser, limpe timeout em unmount; aqui é simples e seguro.
+    // Nota: se quiser, limpe timeout em unmount; aqui é simples.
+    return () => clearTimeout(t);
   }, []);
 
   // Auth + bootstrap do profile
@@ -91,14 +92,15 @@ const App = () => {
             snap = await getDoc(userDocRef);
           }
 
-          // Restringe acesso: apenas administradores podem usar o app
-          const __data = snap.data();
-          if (__data && __data.role && __data.role !== "admin") {
+          const profile = snap.data();
+          if (profile && profile.role && profile.role !== "admin") {
             showAlert("Acesso restrito a administradores.", "error");
-            try { await signOut(auth); } catch {}
+            try {
+              await signOut(auth);
+            } catch {}
             return;
           }
-          setUserData({ uid: authUser.uid, ...__data });
+          setUserData({ uid: authUser.uid, ...profile });
           setUser(authUser);
         } else {
           setUserData(null);
@@ -107,7 +109,9 @@ const App = () => {
       } catch (err) {
         console.error(err);
         showAlert("Falha ao configurar o perfil.", "error");
-        try { await signOut(auth); } catch {}
+        try {
+          await signOut(auth);
+        } catch {}
       } finally {
         setIsLoading(false);
       }
@@ -132,7 +136,9 @@ const App = () => {
 
     useEffect(() => {
       document.body.style.overflow = isSidebarOpen ? "hidden" : "auto";
-      return () => { document.body.style.overflow = "auto"; };
+      return () => {
+        document.body.style.overflow = "auto";
+      };
     }, [isSidebarOpen]);
 
     const handleNavigate = (page, id = null) => {
@@ -140,7 +146,7 @@ const App = () => {
       setIsSidebarOpen(false);
     };
 
-            const TITLES = {
+    const TITLES = {
       dashboard: "Dashboard",
       drivers: "Motoristas",
       fleet: "Minha Frota",
@@ -164,7 +170,7 @@ const App = () => {
           />
         );
         break;
-      case \"drivers\":
+      case "drivers":
         pageContent = (
           <DriversPage
             userData={userData}
@@ -176,16 +182,9 @@ const App = () => {
           />
         );
         break;
-      
       case "stock":
         pageContent = (
-          <StockReportPage
-            userData={userData}
-            db={db}
-            appInstanceId={appInstanceId}
-            basePath={basePath}
-            showAlert={showAlert}
-          />
+          <StockReportPage userData={userData} db={db} appInstanceId={appInstanceId} basePath={basePath} showAlert={showAlert} />
         );
         break;
       case "price-comparator":
@@ -216,13 +215,7 @@ const App = () => {
         break;
       case "reports":
         pageContent = (
-          <ReportsPage
-            userData={userData}
-            showAlert={showAlert}
-            db={db}
-            appInstanceId={appInstanceId}
-            basePath={basePath}
-          />
+          <ReportsPage userData={userData} showAlert={showAlert} db={db} appInstanceId={appInstanceId} basePath={basePath} />
         );
         break;
       case "fleet":
@@ -242,12 +235,7 @@ const App = () => {
 
     return (
       <div className="min-h-screen bg-gray-100">
-        {isSidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-20"
-            onClick={() => setIsSidebarOpen(false)}
-          />
-        )}
+        {isSidebarOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-20" onClick={() => setIsSidebarOpen(false)} />}
 
         {/* Sidebar (Drawer) */}
         <div
@@ -275,14 +263,26 @@ const App = () => {
               <i className="fas fa-tachometer-alt fa-fw"></i>
               <span>Dashboard</span>
             </button>
+
             <button
-              onClick={() => handleNavigate(\"drivers\")}
-              className={w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link }
+              onClick={() => handleNavigate("drivers")}
+              className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link ${
+                currentPage === "drivers" ? "active" : "hover:bg-gray-100 text-gray-600"
+              }`}
             >
-              <i className=\"fas fa-id-card fa-fw\"></i>
+              <i className="fas fa-id-card fa-fw"></i>
               <span>Motoristas</span>
             </button>
 
+            <button
+              onClick={() => handleNavigate("fleet")}
+              className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link ${
+                currentPage === "fleet" ? "active" : "hover:bg-gray-100 text-gray-600"
+              }`}
+            >
+              <i className="fas fa-car-side fa-fw"></i>
+              <span>Frota</span>
+            </button>
 
             <button
               onClick={() => handleNavigate("stock")}
@@ -313,16 +313,6 @@ const App = () => {
               <i className="fas fa-chart-line fa-fw"></i>
               <span>Relatórios</span>
             </button>
-
-            {false && (
-              <button
-                onClick={() => setShowEmployeeModal(true)}
-                className="w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors hover:bg-gray-100 text-gray-600"
-              >
-                <i className="fas fa-users fa-fw"></i>
-                <span>{isRentalCompany ? "Gerir " : "Gerir Funcionários"}</span>
-              </button>
-            )}
           </nav>
 
           <div className="p-4 border-t">
@@ -342,39 +332,26 @@ const App = () => {
             <button onClick={() => setIsSidebarOpen(true)} className="text-gray-600 hover:text-gray-800">
               <i className="fas fa-bars text-2xl"></i>
             </button>
-            <h2 className="text-lg font-bold text-blue-900">
-              {TITLES[currentPage] || "Painel"}
-            </h2>
+            <h2 className="text-lg font-bold text-blue-900">{TITLES[currentPage] || "Painel"}</h2>
             <div className="w-8" />
           </header>
 
           <main className="flex-1 overflow-y-auto">{pageContent}</main>
         </div>
-
-        
       </div>
     );
   };
 
   return (
     <React.Fragment>
-      <CustomAlert
-        message={alertMessage?.message}
-        type={alertMessage?.type}
-        onClose={() => setAlertMessage(null)}
-      />
+      <CustomAlert message={alertMessage?.message} type={alertMessage?.type} onClose={() => setAlertMessage(null)} />
       {user && userData ? (
         <AppContent user={user} userData={userData} />
       ) : (
-        <AuthScreen
-          auth={auth}
-          db={db}
-          appInstanceId={appInstanceId}
-          showAlert={showAlert}
-        />
+        <AuthScreen auth={auth} db={db} appInstanceId={appInstanceId} showAlert={showAlert} />
       )}
     </React.Fragment>
   );
 };
 
-
+window.App = App;
