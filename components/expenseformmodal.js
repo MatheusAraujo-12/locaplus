@@ -1,8 +1,7 @@
 // components/ExpenseFormModal.js - VERSÃO FINAL E CORRIGIDA
 
-const ExpenseFormModal = ({ onClose, onSave, expenseToEdit = null, defaultCategory = 'Manutenção', isCategoryLocked = false, maintenanceItems = [], workshops = [], companyId, db, basePath }) => {
+const ExpenseFormModal = ({ onClose, onSave, expenseToEdit = null, defaultCategory = 'Manutencao', isCategoryLocked = false, maintenanceItems = [], workshops = [], companyId, db, basePath }) => {
     const { useState, useEffect } = React;
-    const { addDoc, collection } = window.firebase || {};
     const { addDoc, collection } = window.firebase || {};
 
     const [selectedItems, setSelectedItems] = useState([]);
@@ -143,6 +142,7 @@ const ExpenseFormModal = ({ onClose, onSave, expenseToEdit = null, defaultCatego
         </div>
     );
 };
+
 
 
 
