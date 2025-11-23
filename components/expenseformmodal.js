@@ -93,7 +93,7 @@ const ExpenseFormModal = ({ onClose, onSave, expenseToEdit = null, defaultCatego
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-40 modal-enter">
-            <div className="bg-white rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-lg">
+            <div className="bg-white rounded-xl shadow-2xl p-6 md:p-8 w-full max-w-3xl max-h-[85vh] overflow-y-auto">
                 <h2 className="text-2xl font-bold text-gray-800 mb-6">
                     {expenseToEdit ? 'Editar' : 'Adicionar Nova'} {isCategoryLocked ? 'Manutenção' : 'Despesa'}
                 </h2>
