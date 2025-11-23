@@ -1,7 +1,9 @@
 // components/ExpenseFormModal.js - VERSÃO FINAL E CORRIGIDA
 
-const ExpenseFormModal = ({ onClose, onSave, expenseToEdit = null, defaultCategory = 'Manutenção', isCategoryLocked = false, maintenanceItems = [], workshops = [], companyId }) => {
+const ExpenseFormModal = ({ onClose, onSave, expenseToEdit = null, defaultCategory = 'Manutenção', isCategoryLocked = false, maintenanceItems = [], workshops = [], companyId, db, basePath }) => {
     const { useState, useEffect } = React;
+    const { addDoc, collection } = window.firebase || {};
+    const { addDoc, collection } = window.firebase || {};
 
     const [selectedItems, setSelectedItems] = useState([]);
     const [formData, setFormData] = useState({ 
@@ -110,7 +112,21 @@ const ExpenseFormModal = ({ onClose, onSave, expenseToEdit = null, defaultCatego
                     )}
                     {formData.category === 'Outros' && !isCategoryLocked && ( <input type="text" name="customCategory" placeholder="Digite a categoria personalizada" value={formData.customCategory} onChange={handleChange} className="w-full bg-gray-100 p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 md:col-span-2"/> )}
                     {formData.category === 'Manutenção' ? (
-                        <MultiItemSelector allItems={maintenanceItems} selectedItems={selectedItems} onSelectionChange={handleSelectionChange} onQuantityChange={handleQuantityChange} />
+                        <MultiItemSelector
+                            allItems={maintenanceItems}
+                            selectedItems={selectedItems}
+                            onSelectionChange={handleSelectionChange}
+                            onQuantityChange={handleQuantityChange}
+                            onCreateNewItem={async (data) => {
+                                if (!db || !basePath || !addDoc || !collection) return null;
+                                const docRef = await addDoc(collection(db, `${basePath}/maintenanceItems`), {
+                                    ...data,
+                                    stock: 0,
+                                    createdAt: new Date(),
+                                });
+                                return { id: docRef.id, ...data };
+                            }}
+                        />
                     ) : (
                         <input type="text" name="description" placeholder="Descrição da Despesa" value={formData.description} onChange={handleChange} className="w-full bg-gray-100 p-3 rounded-lg border focus:ring-2 focus:ring-blue-500 md:col-span-2"/>
                     )}
@@ -127,3 +143,9 @@ const ExpenseFormModal = ({ onClose, onSave, expenseToEdit = null, defaultCatego
         </div>
     );
 };
+
+
+
+
+
+

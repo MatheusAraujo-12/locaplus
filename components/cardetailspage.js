@@ -569,6 +569,8 @@ const CarDetailsPage = ({ user, userData, showAlert, carId, goBack, db, auth, ap
             workshops={workshops}
             expenseToEdit={expenseToEdit}
             companyId={companyId}
+            db={db}
+            basePath={basePath}
           />
         )}
         {isAdmin && activeModals.revenue && (
