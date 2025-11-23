@@ -42,7 +42,7 @@ const MultiItemSelector = ({ allItems, selectedItems, onSelectionChange, onQuant
 
     return (
         <div className="relative md:col-span-2" ref={wrapperRef}>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Itens/ServiA�os</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Itens/Serviços</label>
             <div className="w-full bg-gray-100 p-2 rounded-lg border focus-within:ring-2 focus-within:ring-blue-500 flex flex-col gap-2 min-h-[48px]">
                 <div className="flex flex-col gap-2">
                     {selectedItems.map((item, index) => (
