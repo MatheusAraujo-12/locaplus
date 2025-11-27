@@ -383,6 +383,33 @@
       setNewBrandName("");
     };
 
+    // Helper para upload de arquivo no Storage, retornando a URL
+    const uploadImageIfNeeded = async (file, pathPrefix) => {
+      if (!file) return "";
+
+      try {
+        const storage = window.firebaseStorage;
+        const { ref, uploadBytes, getDownloadURL } = window.firebase || {};
+
+        if (!storage || !ref || !uploadBytes || !getDownloadURL) {
+          console.error(
+            "Firebase Storage não inicializado corretamente. Verifique window.firebaseStorage e window.firebase."
+          );
+          return "";
+        }
+
+        const safePrefix = pathPrefix || "routine-checklists";
+        const fileName = `${Date.now()}_${file.name}`;
+        const storageRef = ref(storage, `${safePrefix}/${fileName}`);
+        const snapshot = await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(snapshot.ref);
+        return url;
+      } catch (err) {
+        console.error("Erro ao fazer upload de imagem de checklist:", err);
+        return "";
+      }
+    };
+
     const handleSubmit = async () => {
       if (isViewMode) {
         onClose();
@@ -405,14 +432,58 @@
           ])
         );
 
+        // Upload da foto geral do veículo, se houver File novo
+        let finalPhotoURL = photoEvidence.url || "";
+        if (!finalPhotoURL && photoEvidence.file) {
+          // se tiver carId em initialData, usamos; senão, vai pra pasta genérica
+          const carId = initialData?.carId || "general";
+          finalPhotoURL = await uploadImageIfNeeded(
+            photoEvidence.file,
+            `routine-checklists/${carId}`
+          );
+        }
+
+        // Upload das fotos de danos (se houver) e montar array limpo (sem File)
+        const processedDamages = [];
+        const carIdForDamages = initialData?.carId || "general";
+
+        for (const damage of damages) {
+          let photoURL = damage.photoURL || "";
+
+          if (!photoURL && damage.photoFile) {
+            photoURL = await uploadImageIfNeeded(
+              damage.photoFile,
+              `routine-checklists/${carIdForDamages}/damages`
+            );
+          }
+
+          processedDamages.push({
+            id: damage.id,
+            location: damage.location,
+            description: damage.description,
+            estimatedCost:
+              typeof damage.estimatedCost === "number"
+                ? damage.estimatedCost
+                : damage.estimatedCost
+                ? Number(
+                    String(damage.estimatedCost)
+                      .replace(".", "")
+                      .replace(",", ".")
+                  ) || 0
+                : 0,
+            responsibleType: damage.responsibleType || "driver",
+            photoURL: photoURL || "",
+          });
+        }
+
+        // Payload final SEM nenhum objeto File
         const payload = {
           checklist,
           tires: normalizedTires,
           notes,
           generalDamages,
-          photoFile: photoEvidence.file || null,
-          photoURL: photoEvidence.url || "",
-          damages,
+          photoURL: finalPhotoURL || "",
+          damages: processedDamages,
           rejectionDetails,
           type: "routine",
           date: initialData?.date || new Date().toISOString().slice(0, 10),
