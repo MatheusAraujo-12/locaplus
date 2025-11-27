@@ -37,23 +37,98 @@
     <div id="root"></div>
     <div class="print-container"></div>
 
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, doc, onSnapshot, query, updateDoc, where, getDocs, orderBy, setDoc, deleteDoc, getDoc, increment, collectionGroup, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-    window.firebase = { initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, getFirestore, collection, addDoc, doc, onSnapshot, query, updateDoc, where, getDocs, orderBy, setDoc, deleteDoc, getDoc, getStorage, ref, uploadBytes, getDownloadURL, deleteObject, increment, collectionGroup, arrayUnion };
-</script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            onAuthStateChanged, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            GoogleAuthProvider, 
+            signInWithPopup 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            doc, 
+            onSnapshot, 
+            query, 
+            updateDoc, 
+            where, 
+            getDocs, 
+            orderBy, 
+            setDoc, 
+            deleteDoc, 
+            getDoc, 
+            increment, 
+            collectionGroup, 
+            arrayUnion 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL, 
+            deleteObject 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        window.firebase = { 
+            initializeApp, 
+            getAuth, 
+            onAuthStateChanged, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            signOut, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            doc, 
+            onSnapshot, 
+            query, 
+            updateDoc, 
+            where, 
+            getDocs, 
+            orderBy, 
+            setDoc, 
+            deleteDoc, 
+            getDoc, 
+            getStorage, 
+            ref, 
+            uploadBytes, 
+            getDownloadURL, 
+            deleteObject, 
+            increment, 
+            collectionGroup, 
+            arrayUnion 
+        };
+    </script>
+
+    <!-- Utilidades, serviços e hooks globais -->
+    <script src="utils/formatting.js"></script>
+    <script src="utils/checklistPendencies.js"></script>
+    <script src="services/carService.js"></script>
+    <script src="contexts/CarDetailsContext.js"></script>
+    <script src="hooks/useCarUI.js"></script>
+    <script src="hooks/useCarData.js"></script>
+    <script src="hooks/useCarActions.js"></script>
+
     <!-- Carregamento dos Componentes em Ordem CORRETA -->
+    <script type="text/babel" data-presets="env,react" src="components/StarRatingInteractive.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/authscreen.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/loadingspinner.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/customalert.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/deleteconfirmationmodal.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/carformmodal.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/ImportDataModal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/FinancialImportButton.js"></script>
     <!-- Recursos de mapa e controle de viagem removidos -->
     <script type="text/babel" data-presets="env,react" src="components/cardetailsheader.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/driverformmodal.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/PendencyFormModal.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/multiitemselector.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/expenseformmodal.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/revenueformmodal.js"></script>
@@ -64,18 +139,29 @@
     <script type="text/babel" data-presets="env,react" src="components/checklistslist.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/routinechecklistmodal.js?v=4"></script>
     <script type="text/babel" data-presets="env,react" src="components/deliverychecklistmodal.js"></script>
+
+    <!-- Subcomponentes da tela de detalhes do carro -->
+    <script type="text/babel" data-presets="env,react" src="components/cars/CarTabsHeader.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/cars/CarChecklistsTab.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/cars/CarFinancialTab.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/cars/CarMaintenanceTab.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/cars/CarServicesTab.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/cars/CarRemindersTab.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/cars/CarPendingsTab.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/cars/CarModalsManager.js"></script>
     
     <script type="text/babel" data-presets="env,react" src="components/cardetailspage.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/maintenanceitemmanager.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/fleetlistpage.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/driverspage.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/reportspage.js"></script>
+    <script type="text/babel" data-presets="env,react" src="components/PendingsReportPage.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/stockreportpage.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/pricecomparatorpage.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/workshopmanager.js"></script>
     <script type="text/babel" data-presets="env,react" src="components/dashboardpage.js"></script>
     
-    <!-- O App.js deve ser o AsLTIMO componente a ser carregado -->
+    <!-- O App.js deve ser o último componente a ser carregado -->
     <script type="text/babel" data-presets="env,react" src="components/app.js?v=2"></script>
     
     <script type="text/babel">
@@ -84,7 +170,7 @@
             apiKey: "AIzaSyD-FH6kF0XyvHY3E1xf3Ca0cBL0RYA1GYw",
             authDomain: "silicon-parity-462518-p1.firebaseapp.com",
             projectId: "silicon-parity-462518-p1",
-            storageBucket: "gs://silicon-parity-462518-p1.firebasestorage.app", // Verifique se o domínio está correto, geralmente termina com .appspot.com
+            storageBucket: "gs://silicon-parity-462518-p1.firebasestorage.app", // Verifique se o domínio está correto
             messagingSenderId: "923422896960",
             appId: "1:923422896960:web:4a7985a1cef9cec10080a5",
         };
@@ -97,11 +183,10 @@
             getStorage 
         } = window.firebase;
 
-        // 3. INICIALIZE O FIREBASE - Este é o passo crucial que faltava
+        // 3. INICIALIZE O FIREBASE
         const app = initializeApp(firebaseConfig);
 
         // 4. Crie instâncias dos serviços e as coloque no window para fácil acesso
-        // Agora seus componentes podem usar essas variáveis diretamente.
         window.firebaseApp = app;
         window.firebaseAuth = getAuth(app);
         window.firebaseDb = getFirestore(app);
@@ -111,10 +196,8 @@
         // Variável extra que você tinha
         window.app_instance_id = "5Uoss8SuxxMftQhEbzgn";
 
-        // 5. AGORA SIM, renderize o App React, pois o Firebase já está pronto!
+        // 5. Agora sim, renderize o App React, pois o Firebase já está pronto!
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
-
-

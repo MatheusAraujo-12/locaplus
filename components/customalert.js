@@ -1,1 +1,4 @@
+﻿;(function(){
 const CustomAlert = ({ message, type, onClose }) => { if (!message) return null; const styles = { success: 'bg-green-100 border-green-400 text-green-700', error: 'bg-red-100 border-red-400 text-red-700' }; return (<div className={`fixed top-5 right-5 border-l-4 p-4 rounded-md shadow-lg z-50 ${styles[type]}`} role="alert"><div className="flex justify-between items-center"><p className="font-bold">{message}</p><button onClick={onClose} className="ml-4 text-xl font-bold">&times;</button></div></div>); };
+window.CustomAlert = CustomAlert;
+})();

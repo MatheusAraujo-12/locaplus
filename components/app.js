@@ -1,13 +1,14 @@
-// components/App.js - versão para uso com Babel no browser
+﻿;(function(){
+const { useCallback, useEffect, useState } = React;
 
 const App = () => {
-  const { useState, useEffect, useMemo, useCallback } = React;
+  const auth = window.firebaseAuth;
+  const db = window.firebaseDb;
+  const appInstanceId = window.app_instance_id || window.APP_INSTANCE_ID || "";
+
   const {
-    initializeApp,
-    getAuth,
     onAuthStateChanged,
     signOut,
-    getFirestore,
     doc,
     getDoc,
     collection,
@@ -18,7 +19,6 @@ const App = () => {
     deleteDoc,
   } = window.firebase || {};
 
-  const [firebaseApp, setFirebaseApp] = useState(null);
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,47 +26,41 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState("dashboard");
   const [selectedId, setSelectedId] = useState(null);
 
-  // init Firebase app (idempotente via window.firebaseApp)
-  useEffect(() => {
-    if (!window.firebase_config) {
-      console.error("firebase_config ausente no window.");
-      return;
-    }
-    if (!window.firebaseApp) {
-      window.firebaseApp = initializeApp(window.firebase_config);
-    }
-    setFirebaseApp(window.firebaseApp);
-  }, []);
-
-  const auth = useMemo(() => (firebaseApp ? getAuth(firebaseApp) : null), [firebaseApp]);
-  const db = useMemo(() => (firebaseApp ? getFirestore(firebaseApp) : null), [firebaseApp]);
-
-  const appInstanceId = useMemo(() => window.app_instance_id, []);
-  const basePath = useMemo(
-    () => (userData?.companyId ? `artifacts/${appInstanceId}/users/${userData.companyId}` : null),
-    [appInstanceId, userData?.companyId]
-  );
-
   const showAlert = useCallback((message, type) => {
     setAlertMessage({ message, type });
-    const t = setTimeout(() => setAlertMessage(null), 5000);
-    // Nota: se quiser, limpe timeout em unmount; aqui é simples.
-    return () => clearTimeout(t);
+    setTimeout(() => setAlertMessage(null), 5000);
   }, []);
 
-  // Auth + bootstrap do profile
   useEffect(() => {
-    if (!auth || !db) return;
-    const unsub = onAuthStateChanged(auth, async (authUser) => {
+    if (!auth || !db || !onAuthStateChanged) {
+      setIsLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       try {
         if (authUser) {
-          const userDocRef = doc(db, "artifacts", appInstanceId, "users", authUser.uid);
+          const userDocRef = doc(
+            db,
+            "artifacts",
+            appInstanceId,
+            "users",
+            authUser.uid
+          );
           let snap = await getDoc(userDocRef);
 
           if (!snap.exists()) {
-            const invitationsRef = collection(db, "artifacts", appInstanceId, "invitations");
-            const q = query(invitationsRef, where("email", "==", authUser.email));
-            const invitationSnap = await getDocs(q);
+            const invitationsRef = collection(
+              db,
+              "artifacts",
+              appInstanceId,
+              "invitations"
+            );
+            const invitesQuery = query(
+              invitationsRef,
+              where("email", "==", authUser.email)
+            );
+            const invitationSnap = await getDocs(invitesQuery);
 
             let profileData = {};
             if (invitationSnap.empty) {
@@ -92,46 +86,52 @@ const App = () => {
             snap = await getDoc(userDocRef);
           }
 
-          const profile = snap.data();
-          if (profile && profile.role && profile.role !== "admin") {
+          const data = snap.data();
+          if (data && data.role && data.role !== "admin") {
             showAlert("Acesso restrito a administradores.", "error");
             try {
               await signOut(auth);
-            } catch {}
+            } catch (err) {
+              console.error(err);
+            }
             return;
           }
-          setUserData({ uid: authUser.uid, ...profile });
+
+          setUserData({ uid: authUser.uid, ...data });
           setUser(authUser);
         } else {
           setUserData(null);
           setUser(null);
         }
-      } catch (err) {
-        console.error(err);
+      } catch (error) {
+        console.error(error);
         showAlert("Falha ao configurar o perfil.", "error");
         try {
           await signOut(auth);
-        } catch {}
+        } catch (err) {
+          console.error(err);
+        }
       } finally {
         setIsLoading(false);
       }
     });
-    return () => unsub();
-  }, [auth, db, appInstanceId, showAlert]);
+
+    return () => unsubscribe && unsubscribe();
+  }, [appInstanceId, auth, db, onAuthStateChanged, showAlert, signOut]);
 
   const navigate = useCallback((page, id = null) => {
     setCurrentPage(page);
     setSelectedId(id);
   }, []);
 
-  if (!firebaseApp || isLoading) return <LoadingSpinner />;
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
 
   const AppContent = ({ user, userData }) => {
-    const { useState, useEffect } = React;
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    const { companyType, role, email, companyName } = userData;
-    const isAdmin = role === "admin";
+    const { companyType, email, companyName } = userData || {};
     const isRentalCompany = companyType === "locadora";
 
     useEffect(() => {
@@ -148,12 +148,13 @@ const App = () => {
 
     const TITLES = {
       dashboard: "Dashboard",
-      drivers: "Motoristas",
       fleet: "Minha Frota",
-      carDetails: "Detalhes do Veículo",
+      drivers: "Motoristas",
       stock: "Estoque",
-      "price-comparator": "Comparador de Preços",
+      "price-comparator": "Comparador",
       reports: "Relatórios",
+      carDetails: "Detalhes do Veículo",
+      "pendings-report": "Relatório de Pendências",
     };
 
     let pageContent;
@@ -165,11 +166,11 @@ const App = () => {
             onNavigate={handleNavigate}
             db={db}
             appInstanceId={appInstanceId}
-            basePath={basePath}
             showAlert={showAlert}
           />
         );
         break;
+
       case "drivers":
         pageContent = (
           <DriversPage
@@ -177,27 +178,33 @@ const App = () => {
             onNavigate={handleNavigate}
             db={db}
             appInstanceId={appInstanceId}
-            basePath={basePath}
             showAlert={showAlert}
           />
         );
         break;
+
       case "stock":
         pageContent = (
-          <StockReportPage userData={userData} db={db} appInstanceId={appInstanceId} basePath={basePath} showAlert={showAlert} />
+          <StockReportPage
+            userData={userData}
+            db={db}
+            appInstanceId={appInstanceId}
+            showAlert={showAlert}
+          />
         );
         break;
+
       case "price-comparator":
         pageContent = (
           <PriceComparatorPage
             userData={userData}
             db={db}
             appInstanceId={appInstanceId}
-            basePath={basePath}
             showAlert={showAlert}
           />
         );
         break;
+
       case "carDetails":
         pageContent = (
           <CarDetailsPage
@@ -209,15 +216,34 @@ const App = () => {
             db={db}
             auth={auth}
             appInstanceId={appInstanceId}
-            basePath={basePath}
           />
         );
         break;
+
       case "reports":
         pageContent = (
-          <ReportsPage userData={userData} showAlert={showAlert} db={db} appInstanceId={appInstanceId} basePath={basePath} />
+          <ReportsPage
+            userData={userData}
+            showAlert={showAlert}
+            db={db}
+            appInstanceId={appInstanceId}
+            onNavigate={handleNavigate}
+          />
         );
         break;
+
+      case "pendings-report":
+        pageContent = (
+          <PendingsReportPage
+            db={db}
+            userData={userData}
+            appInstanceId={appInstanceId}
+            goBack={() => handleNavigate("reports")}
+            showAlert={showAlert}
+          />
+        );
+        break;
+
       case "fleet":
       default:
         pageContent = (
@@ -228,23 +254,28 @@ const App = () => {
             onSelectCar={(id) => handleNavigate("carDetails", id)}
             db={db}
             appInstanceId={appInstanceId}
-            basePath={basePath}
           />
         );
     }
 
     return (
       <div className="min-h-screen bg-gray-100">
-        {isSidebarOpen && <div className="fixed inset-0 bg-black bg-opacity-50 z-20" onClick={() => setIsSidebarOpen(false)} />}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-20"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
 
-        {/* Sidebar (Drawer) */}
         <div
           className={`fixed inset-y-0 left-0 transform ${
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           } transition-transform duration-300 ease-in-out w-64 bg-white shadow-lg flex flex-col z-30 no-print`}
         >
           <div className="p-6 border-b">
-            <h2 className="text-xl font-bold text-blue-900">{companyName || "Meu Painel"}</h2>
+            <h2 className="text-xl font-bold text-blue-900">
+              {companyName || "Meu Painel"}
+            </h2>
             <p className="text-sm text-gray-500">{email}</p>
             {isRentalCompany && (
               <span className="mt-2 inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
@@ -254,70 +285,32 @@ const App = () => {
           </div>
 
           <nav className="flex-grow p-4 space-y-2">
-            <button
-              onClick={() => handleNavigate("dashboard")}
-              className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link ${
-                currentPage === "dashboard" ? "active" : "hover:bg-gray-100 text-gray-600"
-              }`}
-            >
-              <i className="fas fa-tachometer-alt fa-fw"></i>
-              <span>Dashboard</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigate("drivers")}
-              className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link ${
-                currentPage === "drivers" ? "active" : "hover:bg-gray-100 text-gray-600"
-              }`}
-            >
-              <i className="fas fa-id-card fa-fw"></i>
-              <span>Motoristas</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigate("fleet")}
-              className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link ${
-                currentPage === "fleet" ? "active" : "hover:bg-gray-100 text-gray-600"
-              }`}
-            >
-              <i className="fas fa-car-side fa-fw"></i>
-              <span>Frota</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigate("stock")}
-              className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link ${
-                currentPage === "stock" ? "active" : "hover:bg-gray-100 text-gray-600"
-              }`}
-            >
-              <i className="fas fa-boxes fa-fw"></i>
-              <span>Estoque</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigate("price-comparator")}
-              className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link ${
-                currentPage === "price-comparator" ? "active" : "hover:bg-gray-100 text-gray-600"
-              }`}
-            >
-              <i className="fas fa-tags fa-fw"></i>
-              <span>Comparador</span>
-            </button>
-
-            <button
-              onClick={() => handleNavigate("reports")}
-              className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link ${
-                currentPage === "reports" ? "active" : "hover:bg-gray-100 text-gray-600"
-              }`}
-            >
-              <i className="fas fa-chart-line fa-fw"></i>
-              <span>Relatórios</span>
-            </button>
+            {[
+              { key: "dashboard", icon: "fas fa-tachometer-alt", label: "Dashboard" },
+              { key: "fleet", icon: "fas fa-car-side", label: "Minha Frota" },
+              { key: "drivers", icon: "fas fa-id-card", label: "Motoristas" },
+              { key: "stock", icon: "fas fa-boxes", label: "Estoque" },
+              { key: "price-comparator", icon: "fas fa-tags", label: "Comparador" },
+              { key: "reports", icon: "fas fa-chart-line", label: "Relatórios" },
+            ].map((item) => (
+              <button
+                key={item.key}
+                onClick={() => handleNavigate(item.key)}
+                className={`w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors sidebar-link ${
+                  currentPage === item.key
+                    ? "active"
+                    : "hover:bg-gray-100 text-gray-600"
+                }`}
+              >
+                <i className={`${item.icon} fa-fw`}></i>
+                <span>{item.label}</span>
+              </button>
+            ))}
           </nav>
 
           <div className="p-4 border-t">
             <button
-              onClick={() => signOut(auth)}
+              onClick={() => signOut && auth && signOut(auth)}
               className="w-full text-left px-4 py-2.5 rounded-lg flex items-center gap-3 transition-colors text-gray-600 hover:bg-red-50 hover:text-red-600"
             >
               <i className="fas fa-sign-out-alt fa-fw"></i>
@@ -326,13 +319,17 @@ const App = () => {
           </div>
         </div>
 
-        {/* Conteúdo Principal */}
         <div className="flex flex-col flex-1 w-full">
           <header className="sticky top-0 bg-white shadow-md p-4 flex items-center justify-between z-10 no-print">
-            <button onClick={() => setIsSidebarOpen(true)} className="text-gray-600 hover:text-gray-800">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="text-gray-600 hover:text-gray-800"
+            >
               <i className="fas fa-bars text-2xl"></i>
             </button>
-            <h2 className="text-lg font-bold text-blue-900">{TITLES[currentPage] || "Painel"}</h2>
+            <h2 className="text-lg font-bold text-blue-900">
+              {TITLES[currentPage] || "Painel"}
+            </h2>
             <div className="w-8" />
           </header>
 
@@ -343,15 +340,26 @@ const App = () => {
   };
 
   return (
-    <React.Fragment>
-      <CustomAlert message={alertMessage?.message} type={alertMessage?.type} onClose={() => setAlertMessage(null)} />
+    <>
+      <CustomAlert
+        message={alertMessage?.message}
+        type={alertMessage?.type}
+        onClose={() => setAlertMessage(null)}
+      />
       {user && userData ? (
         <AppContent user={user} userData={userData} />
       ) : (
-        <AuthScreen auth={auth} db={db} appInstanceId={appInstanceId} showAlert={showAlert} />
+        <AuthScreen
+          auth={auth}
+          db={db}
+          appInstanceId={appInstanceId}
+          showAlert={showAlert}
+        />
       )}
-    </React.Fragment>
+    </>
   );
 };
 
 window.App = App;
+
+})();

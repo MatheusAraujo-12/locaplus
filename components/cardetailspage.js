@@ -1,642 +1,594 @@
-// components/CarDetailsPage.js
+﻿;(function () {
+  // src/components/CarDetailsPage.js
 
-const CarDetailsPage = ({ user, userData, showAlert, carId, goBack, db, auth, appInstanceId }) => {
-  const { useState, useEffect, useMemo } = React;
+  const { useMemo } = React;
+
+  // HOOKS
+  const { useCarUI, useCarData, useCarActions } = window;
+
+  // COMPONENTES E UTILITÁRIOS
   const {
-    doc,
-    getDoc,
-    onSnapshot,
-    query,
-    collection,
-    orderBy,
-    addDoc,
-    updateDoc,
-    deleteDoc,
-    getDocs,
-    ref,
-    deleteObject,
-    getStorage,
-    increment,
-  } = window.firebase;
+    CarDetailsProvider,
+    LoadingSpinner,
+    CarDetailsHeader,
+    CarTabsHeader,
+    CarChecklistsTab,
+    CarFinancialTab,
+    CarPendingsTab,
+    CarMaintenanceTab,
+    CarServicesTab,
+    CarRemindersTab,
+    CarModalsManager,
+    formatDate,
+    formatCurrency,
+  } = window;
 
-  const [selectedCar, setSelectedCar] = useState(null);
-  const [drivers, setDrivers] = useState([]);
-  const [workshops, setWorkshops] = useState([]);
-  const [maintenanceItems, setMaintenanceItems] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [revenues, setRevenues] = useState([]);
-  const [reminders, setReminders] = useState([]);
-  const [checklists, setChecklists] = useState([]);
-  const [activeTab, setActiveTab] = useState('checklists');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [expenseToEdit, setExpenseToEdit] = useState(null);
-  const [expenseModalConfig, setExpenseModalConfig] = useState({
-    defaultCategory: 'Manutenção',
-    isCategoryLocked: false,
-  });
-  const [viewingChecklistData, setViewingChecklistData] = useState(null);
-  const [activeModals, setActiveModals] = useState({
-    car: false,
-    expense: false,
-    revenue: false,
-    reminder: false,
-    routineChecklist: false,
-    deliveryChecklist: false,
-    deleteCar: false,
-    deleteChecklist: false,
-  });
-  const [modalData, setModalData] = useState({
-    carToEdit: null,
-    checklistToDelete: null,
-  });
+  if (!CarDetailsProvider) {
+    console.error("❌ ERRO: CarDetailsProvider não está definido no window!");
+  }
 
-  const { companyId, role } = userData;
-  const isAdmin = role === 'admin';
-  const basePath = `artifacts/${appInstanceId}/users/${companyId}`;
-  const storage = getStorage(db.app);
+  const CarDetailsPage = function ({
+    user,
+    userData,
+    showAlert,
+    carId,
+    goBack,
+    db,
+    auth,
+    appInstanceId,
+  }) {
+    // ---------------- UI STATE ----------------
+    const {
+      modalData,
+      setModalData,
+      expenseToEdit,
+      setExpenseToEdit,
+      serviceToEdit,
+      setServiceToEdit,
+      revenueToEdit,
+      setRevenueToEdit,
+      pendencyToEdit,
+      setPendencyToEdit,
+      expenseModalConfig,
+      setExpenseModalConfig,
+      activeTab,
+      setActiveTab,
+      searchQuery,
+      setSearchQuery,
+      activeModals,
+      setActiveModals,
+      viewingChecklistData,
+      setViewingChecklistData,
+    } = useCarUI("maintenance");
 
-  if (!db?.app) return <div>Erro: DB não inicializado.</div>;
+    const { companyId, role } = userData;
+    const isAdmin = role === "admin";
 
-  // Data subscriptions
-  useEffect(() => {
-    if (!db) return undefined;
-    const unsub = onSnapshot(doc(db, `${basePath}/cars`, carId), (snap) => {
-      if (snap.exists()) {
-        setSelectedCar({ id: snap.id, ...snap.data() });
-      } else {
-        goBack();
-      }
+    const basePath = "artifacts/" + appInstanceId + "/users/" + companyId;
+    const storage = window.firebaseStorage;
+
+    if (!db) {
+      return React.createElement(
+        "div",
+        null,
+        "Erro: banco de dados não inicializado."
+      );
+    }
+
+    // ---------------- CAR DATA ----------------
+    const {
+      selectedCar,
+      drivers,
+      workshops,
+      maintenanceItems,
+      expenses,
+      revenues,
+      reminders,
+      checklists,
+      services,
+      pendings,
+      accessDenied,
+      loading,
+    } = useCarData({ db, basePath, carId, goBack });
+
+    // ---------------- ACTIONS ----------------
+    const {
+      handleSaveCar: saveCar,
+      handleCreateMaintenanceItem: createMaintenanceItem,
+      handleSaveExpense: saveExpense,
+      handleDeleteExpense: deleteExpense,
+      handleSaveRevenue: saveRevenue,
+      handleDeleteRevenue,
+      handleSaveReminder: saveReminder,
+      handleReminderAction,
+      handleSaveService: saveService,
+      handleDeleteService,
+      handleSavePendency: savePendency,
+      handleDeletePendency,
+      handleChangePendencyStatus,
+      confirmDeleteChecklist: deleteChecklistData,
+      confirmDeleteCar: deleteCarData,
+    } = useCarActions({
+      db,
+      basePath,
+      companyId,
+      selectedCar,
+      drivers,
+      storage,
+      showAlert,
+      goBack,
     });
-    return unsub;
-  }, [db, carId]);
 
-  useEffect(() => {
-    if (!db || !basePath) return undefined;
-    const q = query(collection(db, `${basePath}/drivers`));
-    return onSnapshot(q, (s) => setDrivers(s.docs.map((d) => ({ id: d.id, name: d.data().name }))));
-  }, [db, basePath]);
-
-  useEffect(() => {
-    if (!db || !basePath) return undefined;
-    const q = query(collection(db, `${basePath}/maintenanceItems`), orderBy('name'));
-    return onSnapshot(q, (s) => setMaintenanceItems(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  }, [db, basePath]);
-
-  useEffect(() => {
-    if (!db || !selectedCar) return undefined;
-    const q = query(collection(db, `${basePath}/cars/${selectedCar.id}/expenses`), orderBy('date', 'desc'));
-    return onSnapshot(q, (s) => setExpenses(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  }, [db, selectedCar]);
-
-  useEffect(() => {
-    if (!db || !selectedCar) return undefined;
-    const q = query(collection(db, `${basePath}/cars/${selectedCar.id}/revenues`), orderBy('date', 'desc'));
-    return onSnapshot(q, (s) => setRevenues(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  }, [db, selectedCar]);
-
-  useEffect(() => {
-    if (!db || !selectedCar) return undefined;
-    const q = query(collection(db, `${basePath}/cars/${selectedCar.id}/reminders`), orderBy('createdAt', 'desc'));
-    return onSnapshot(q, (s) => setReminders(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  }, [db, selectedCar]);
-
-  useEffect(() => {
-    if (!db || !selectedCar) return undefined;
-    const q = query(collection(db, `${basePath}/cars/${selectedCar.id}/checklists`), orderBy('date', 'desc'));
-    return onSnapshot(q, (s) => setChecklists(s.docs.map((d) => ({ id: d.id, ...d.data() }))));
-  }, [db, selectedCar]);
-
-  useEffect(() => {
-    if (!db || !basePath) return undefined;
-    const q = query(collection(db, `${basePath}/workshops`), orderBy('name'));
-    return onSnapshot(q, (s) => setWorkshops(s.docs.map((d) => ({ id: d.id, name: d.data().name }))));
-  }, [db, basePath]);
-
-  const filteredExpenses = useMemo(() => {
-    if (!searchQuery) return expenses;
-    const lq = searchQuery.toLowerCase();
-    return expenses.filter(
-      (e) =>
-        (e.description || '').toLowerCase().includes(lq) ||
-        (e.category || '').toLowerCase().includes(lq)
-    );
-  }, [expenses, searchQuery]);
-
-  const dueReminders = useMemo(() => {
-    if (!selectedCar) return [];
-    const now = new Date();
-    return reminders.filter((r) => {
-      if (r.status !== 'active') return false;
-      if (r.type === 'mileage' && Number(selectedCar.currentMileage) >= Number(r.targetMileage)) return true;
-      if (r.type === 'date' && new Date(r.targetDate) <= now) return true;
-      return false;
-    });
-  }, [reminders, selectedCar]);
-
-  const assignedDriver = useMemo(() => {
-    if (!selectedCar?.assignedDriverId) return null;
-    return drivers.find((d) => d.id === selectedCar.assignedDriverId) || null;
-  }, [selectedCar?.assignedDriverId, drivers]);
-
-  const financialSummary = useMemo(() => {
-    const totalRevenue = revenues.reduce((sum, r) => sum + Number(r.value || 0), 0);
-    const totalExpense = expenses.reduce((sum, e) => sum + Number(e.cost || 0), 0);
-    const ownerCommission =
-      selectedCar?.commissionPercentage ? totalRevenue * (Number(selectedCar.commissionPercentage) / 100) : 0;
-    const netProfit = totalRevenue - totalExpense - ownerCommission;
-    return { totalRevenue, totalExpense, ownerCommission, netProfit };
-  }, [revenues, expenses, selectedCar?.commissionPercentage]);
-
-  const visibleChecklists = useMemo(() => checklists, [checklists]);
-  const maintenanceExpenses = useMemo(() => {
-    return expenses.filter((e) => {
-      const cat = String(e.category || '').toLowerCase();
-      const isMaintCat = cat.includes('manuten');
-      const hasMaintItems =
-        Array.isArray(e.items) &&
-        e.items.some((it) => {
-          const t = String(it.type || '').toLowerCase();
-          return t.includes('peca') || t.includes('serv');
+    // ---------------- FILTERS & COMPUTED ----------------
+    const filteredExpenses = useMemo(
+      function () {
+        if (!searchQuery) return expenses;
+        const q = String(searchQuery).toLowerCase();
+        return expenses.filter(function (e) {
+          return (
+            String(e.description || "").toLowerCase().includes(q) ||
+            String(e.category || "").toLowerCase().includes(q)
+          );
         });
-      return isMaintCat || hasMaintItems;
-    });
-  }, [expenses]);
+      },
+      [expenses, searchQuery]
+    );
 
-  // Actions
-  const handleSaveCar = async (carData) => {
-    const prepared = {
-      ...carData,
-      currentMileage: Number(carData.currentMileage || 0),
-      lastOilChange: Number(carData.lastOilChange || 0),
-      oilChangeInterval: Number(carData.oilChangeInterval || 0),
-      avgConsumption: parseFloat(carData.avgConsumption || 0),
-      assignedDriverId: carData.assignedDriverId || '',
-    };
-    const { id, ...dataToSave } = prepared;
-    try {
-      if (id) {
-        await updateDoc(doc(db, `${basePath}/cars`, id), dataToSave);
-      } else {
-        await addDoc(collection(db, `${basePath}/cars`), { ...dataToSave, createdAt: new Date() });
-      }
-      showAlert('Sucesso!', 'success');
-      setActiveModals((p) => ({ ...p, car: false }));
-    } catch (e) {
-      console.error(e);
-      showAlert(`Erro: ${e.code}`, 'error');
-    }
-  };
+    const maintenanceExpenses = useMemo(
+      function () {
+        return expenses.filter(function (e) {
+          return String(e.category || "").toLowerCase() === "manutenção";
+        });
+      },
+      [expenses]
+    );
 
-  const handleSaveExpense = async (expenseData) => {
-    const { id, ...dataToSave } = expenseData;
-    try {
-      if (id) {
-        await updateDoc(doc(db, `${basePath}/cars/${selectedCar.id}/expenses`, id), dataToSave);
-        showAlert('Despesa atualizada com sucesso!', 'success');
-      } else {
-        await addDoc(collection(db, `${basePath}/cars/${selectedCar.id}/expenses`), dataToSave);
-        if (dataToSave.category === 'Manutenção' && dataToSave.items?.length > 0) {
-          const stockUpdates = dataToSave.items
-            .filter((i) => i.type === 'Peça')
-            .map((item) =>
-              updateDoc(doc(db, `${basePath}/maintenanceItems`, item.id), {
-                stock: increment(-Number(item.quantity)),
-              })
-            );
-          await Promise.all(stockUpdates);
-          showAlert('Despesa registada e estoque atualizado!', 'success');
-        } else {
-          showAlert('Nova despesa registada.', 'success');
-        }
-      }
-      setActiveModals((p) => ({ ...p, expense: false }));
-      setExpenseToEdit(null);
-    } catch (e) {
-      console.error(e);
-      showAlert(`Erro ao salvar despesa: ${e.code}`, 'error');
-    }
-  };
+    const filteredPendings = useMemo(
+      function () {
+        if (!searchQuery) return pendings;
+        const q = String(searchQuery).toLowerCase();
+        return pendings.filter(function (p) {
+          return (
+            String(p.description || "").toLowerCase().includes(q) ||
+            String(p.driverName || "").toLowerCase().includes(q)
+          );
+        });
+      },
+      [pendings, searchQuery]
+    );
 
-  const handleDeleteExpense = async (expenseId) => {
-    if (!confirm('Tem certeza? As peças serão estornadas ao estoque.')) return;
-    const expenseDocRef = doc(db, `${basePath}/cars/${selectedCar.id}/expenses`, expenseId);
-    try {
-      const snap = await getDoc(expenseDocRef);
-      if (snap.exists()) {
-        const exp = snap.data();
-        if (exp.category === 'Manutenção' && Array.isArray(exp.items) && exp.items.length > 0) {
-          const returns = exp.items
-            .filter((i) => i.type === 'Peça')
-            .map((item) =>
-              updateDoc(doc(db, `${basePath}/maintenanceItems`, item.id), {
-                stock: increment(Number(item.quantity)),
-              })
-            );
-          await Promise.all(returns);
-        }
-      }
-      await deleteDoc(expenseDocRef);
-      showAlert('Despesa apagada e estoque estornado.', 'success');
-    } catch (e) {
-      console.error(e);
-      showAlert('Ocorreu um erro ao apagar.', 'error');
-    }
-  };
+    const dueReminders = useMemo(
+      function () {
+        if (!selectedCar) return [];
+        const now = new Date();
+        return reminders.filter(function (r) {
+          if (r.status !== "active") return false;
 
-  const openExpenseModalForEdit = (expense) => {
-    setExpenseToEdit(expense);
-    setExpenseModalConfig({ defaultCategory: expense.category, isCategoryLocked: true });
-    setActiveModals((p) => ({ ...p, expense: true }));
-  };
-  const openExpenseModalForCreate = (isMaintenance = false) => {
-    setExpenseToEdit(null);
-    setExpenseModalConfig({
-      defaultCategory: isMaintenance ? 'Manutenção' : 'Outros',
-      isCategoryLocked: isMaintenance,
-    });
-    setActiveModals((p) => ({ ...p, expense: true }));
-  };
-
-  const handleSaveRevenue = async (revenueData) => {
-    const dataToSave = { ...revenueData, value: Number(revenueData.value || 0) };
-    try {
-      await addDoc(collection(db, `${basePath}/cars/${selectedCar.id}/revenues`), dataToSave);
-      showAlert('Nova receita registada.', 'success');
-      setActiveModals((p) => ({ ...p, revenue: false }));
-    } catch (e) {
-      console.error(e);
-      showAlert(`Erro ao salvar receita: ${e.code}`, 'error');
-    }
-  };
-
-  const handleSaveReminder = async (d) => {
-    const data = { ...d, status: 'active', createdAt: new Date(), targetMileage: Number(d.targetMileage || 0) };
-    try {
-      await addDoc(collection(db, `${basePath}/cars/${selectedCar.id}/reminders`), data);
-      showAlert('Lembrete criado.', 'success');
-      setActiveModals((p) => ({ ...p, reminder: false }));
-    } catch (e) {
-      showAlert(`Erro: ${e.code}`, 'error');
-    }
-  };
-
-  const handleReminderAction = async (id, status) => {
-    const refDoc = doc(db, `${basePath}/cars/${selectedCar.id}/reminders`, id);
-    try {
-      if (status === 'apagado') {
-        await deleteDoc(refDoc);
-        showAlert('Lembrete apagado.', 'success');
-      } else {
-        await updateDoc(refDoc, { status });
-        showAlert(`Lembrete marcado como ${status}.`, 'success');
-      }
-    } catch (e) {
-      showAlert(`Erro ao processar lembrete: ${e.code}`, 'error');
-    }
-  };
-
-  const openRoutineChecklistForCreate = () => setActiveModals((p) => ({ ...p, routineChecklist: true }));
-  const openDeliveryChecklistForCreate = () => setActiveModals((p) => ({ ...p, deliveryChecklist: true }));
-  const openChecklistForView = (checklist) => {
-    setViewingChecklistData(checklist);
-    if (checklist.type === 'delivery_return') {
-      setActiveModals((p) => ({ ...p, deliveryChecklist: true }));
-    } else {
-      setActiveModals((p) => ({ ...p, routineChecklist: true }));
-    }
-  };
-
-  const confirmDeleteChecklist = async () => {
-    const target = modalData.checklistToDelete;
-    if (!target) return;
-    try {
-      if (Array.isArray(target.damages) && target.damages.length > 0) {
-        for (const d of target.damages) {
-          if (d.photoURL) {
-            try {
-              await deleteObject(ref(storage, d.photoURL));
-            } catch (e) {
-              console.warn('Erro apagando foto:', e);
-            }
+          if (
+            r.type === "mileage" &&
+            Number(selectedCar.currentMileage) >= Number(r.targetMileage)
+          ) {
+            return true;
           }
-        }
+
+          if (r.type === "date" && new Date(r.targetDate) <= now) {
+            return true;
+          }
+
+          return false;
+        });
+      },
+      [reminders, selectedCar]
+    );
+
+    const assignedDriver = useMemo(
+      function () {
+        if (!selectedCar || !selectedCar.assignedDriverId) return null;
+        return (
+          drivers.find(function (d) {
+            return d.id === selectedCar.assignedDriverId;
+          }) || null
+        );
+      },
+      [selectedCar ? selectedCar.assignedDriverId : null, drivers]
+    );
+
+    const visibleChecklists = checklists;
+
+    const financialSummary = useMemo(
+      function () {
+        const totalExpense = expenses.reduce(function (s, e) {
+          return s + Number(e.cost || 0);
+        }, 0);
+
+        const totalRevenue = revenues.reduce(function (s, r) {
+          return s + Number(r.value || 0);
+        }, 0);
+
+        const netProfit = totalRevenue - totalExpense;
+
+        const commissionPct =
+          Number(selectedCar && selectedCar.commissionPercentage
+            ? selectedCar.commissionPercentage
+            : 0) / 100;
+
+        const ownerCommission =
+          commissionPct > 0 && netProfit > 0
+            ? netProfit * commissionPct
+            : 0;
+
+        return {
+          totalExpense: totalExpense,
+          totalRevenue: totalRevenue,
+          netProfit: netProfit,
+          ownerCommission: ownerCommission,
+        };
+      },
+      [expenses, revenues, selectedCar ? selectedCar.commissionPercentage : null]
+    );
+
+    // ---------------- UI WRAPPERS ----------------
+
+    // SALVAR CARRO
+    const handleSaveCar = async function (carData) {
+      await saveCar(carData);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { car: false });
+      });
+    };
+
+    // SALVAR DESPESA
+    const handleSaveExpense = async function (expenseData) {
+      await saveExpense(expenseData);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { expense: false });
+      });
+      setExpenseToEdit(null);
+    };
+
+    // 🔴 AGORA DEFINIDO: EXCLUIR DESPESA COM CONFIRMAÇÃO
+    const handleDeleteExpense = async function (expenseId) {
+      if (!selectedCar) return;
+      const ok = window.confirm(
+        "Tem certeza? As peças serão estornadas ao estoque."
+      );
+      if (!ok) return;
+      await deleteExpense(expenseId);
+    };
+
+    // EDITAR DESPESA
+    const openExpenseModalForEdit = function (expense) {
+      setExpenseToEdit(expense);
+      setExpenseModalConfig({
+        defaultCategory: expense.category,
+        isCategoryLocked: true,
+      });
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { expense: true });
+      });
+    };
+
+    // CRIAR DESPESA (MANUTENÇÃO OU OUTROS)
+    const openExpenseModalForCreate = function (isMaintenance) {
+      setExpenseToEdit(null);
+      setExpenseModalConfig({
+        defaultCategory: isMaintenance ? "Manutenção" : "Outros",
+        isCategoryLocked: !!isMaintenance,
+      });
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { expense: true });
+      });
+    };
+
+    // RECEITAS
+    const handleSaveRevenue = async function (rev) {
+      await saveRevenue(rev);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { revenue: false });
+      });
+      setRevenueToEdit(null);
+    };
+
+    const openRevenueModalForEdit = function (rev) {
+      setRevenueToEdit(rev);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { revenue: true });
+      });
+    };
+
+    // SERVIÇOS
+    const openServiceModalForCreate = function () {
+      setServiceToEdit(null);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { service: true });
+      });
+    };
+
+    const openServiceModalForEdit = function (s) {
+      setServiceToEdit(s);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { service: true });
+      });
+    };
+
+    const handleSaveService = async function (serviceData) {
+      await saveService(serviceData);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { service: false });
+      });
+      setServiceToEdit(null);
+    };
+
+    // PENDÊNCIAS
+    const openPendencyModalForCreate = function () {
+      setPendencyToEdit(null);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { pendency: true });
+      });
+    };
+
+    const openPendencyModalForEdit = function (pend) {
+      setPendencyToEdit(pend);
+      setActiveModals(function (p2) {
+        return Object.assign({}, p2, { pendency: true });
+      });
+    };
+
+    const handleSavePendency = async function (pendencyData) {
+      await savePendency(pendencyData);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { pendency: false });
+      });
+      setPendencyToEdit(null);
+    };
+
+    // CHECKLISTS
+    const openRoutineChecklistForCreate = function () {
+      setViewingChecklistData(null);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { routineChecklist: true });
+      });
+    };
+
+    const openDeliveryChecklistForCreate = function () {
+      setViewingChecklistData(null);
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { deliveryChecklist: true });
+      });
+    };
+
+    const openChecklistForView = function (checklist) {
+      setViewingChecklistData(checklist);
+      if (checklist.type === "delivery_return") {
+        setActiveModals(function (p) {
+          return Object.assign({}, p, { deliveryChecklist: true });
+        });
+      } else {
+        setActiveModals(function (p) {
+          return Object.assign({}, p, { routineChecklist: true });
+        });
       }
-      await deleteDoc(doc(db, `${basePath}/cars/${selectedCar.id}/checklists`, target.id));
-      showAlert('Vistoria apagada.', 'success');
-    } catch (e) {
-      showAlert('Falha ao apagar a vistoria.', 'error');
-    } finally {
-      setActiveModals((p) => ({ ...p, deleteChecklist: false }));
-      setModalData((p) => ({ ...p, checklistToDelete: null }));
+    };
+
+    const confirmDeleteChecklist = async function () {
+      const target = modalData.checklistToDelete;
+      if (!target) return;
+
+      await deleteChecklistData(target);
+
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { deleteChecklist: false });
+      });
+      setModalData(function (p) {
+        return Object.assign({}, p, { checklistToDelete: null });
+      });
+    };
+
+    const confirmDeleteCar = async function () {
+      await deleteCarData();
+      setActiveModals(function (p) {
+        return Object.assign({}, p, { deleteCar: false });
+      });
+    };
+
+    // ---------------- RENDER ----------------
+    if (loading || !selectedCar) {
+      return React.createElement(LoadingSpinner, {
+        text: "Carregando dados do veículo...",
+      });
     }
+
+    if (accessDenied) {
+      return React.createElement(
+        "div",
+        { className: "p-6" },
+        React.createElement(
+          "button",
+          {
+            onClick: goBack,
+            className: "mb-6 text-blue-600 hover:text-blue-800 font-semibold",
+          },
+          React.createElement("i", { className: "fas fa-arrow-left mr-2" }),
+          "Voltar"
+        ),
+        React.createElement(
+          "div",
+          { className: "bg-red-50 text-red-700 p-4 rounded-lg" },
+          "Acesso negado a este veículo."
+        )
+      );
+    }
+
+    return React.createElement(
+      CarDetailsProvider,
+      {
+        value: {
+          selectedCar: selectedCar,
+          isAdmin: isAdmin,
+          companyId: companyId,
+          drivers: drivers,
+          reminders: reminders,
+          expenses: expenses,
+          revenues: revenues,
+          pendings: pendings,
+          services: services,
+          checklists: checklists,
+        },
+      },
+      React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(
+          "div",
+          { className: "p-4 md:p-6 bg-gray-50 min-h-screen" },
+          React.createElement(CarDetailsHeader, {
+            goBack: goBack,
+            dueReminders: dueReminders,
+            selectedCar: selectedCar,
+            assignedDriver: assignedDriver,
+            isAdmin: isAdmin,
+            user: user,
+            setActiveModals: setActiveModals,
+            setModalData: setModalData,
+          }),
+          React.createElement(
+            "div",
+            { className: "mt-8 bg-white rounded-xl shadow-lg p-4 sm:p-6" },
+            React.createElement(CarTabsHeader, {
+              isAdmin: isAdmin,
+              activeTab: activeTab,
+              setActiveTab: setActiveTab,
+              onCreateRoutineChecklist: openRoutineChecklistForCreate,
+              onCreateDeliveryChecklist: openDeliveryChecklistForCreate,
+              onCreatePendency: openPendencyModalForCreate,
+              onCreateMaintenance: function () {
+                openExpenseModalForCreate(true);
+              },
+              onCreateService: openServiceModalForCreate,
+              onCreateReminder: function () {
+                setActiveModals(function (p) {
+                  return Object.assign({}, p, { reminder: true });
+                });
+              },
+            }),
+            React.createElement(
+              "div",
+              { className: "overflow-x-auto" },
+              activeTab === "checklists" &&
+                React.createElement(CarChecklistsTab, {
+                  checklists: visibleChecklists,
+                  isAdmin: isAdmin,
+                  onViewChecklist: openChecklistForView,
+                  onRequestDeleteChecklist: function (cl) {
+                    setActiveModals(function (p) {
+                      return Object.assign({}, p, {
+                        deleteChecklist: true,
+                      });
+                    });
+                    setModalData(function (p) {
+                      return Object.assign({}, p, {
+                        checklistToDelete: cl,
+                      });
+                    });
+                  },
+                }),
+              activeTab === "financial" &&
+                React.createElement(CarFinancialTab, {
+                  financialSummary: financialSummary,
+                  revenues: revenues,
+                  expenses: filteredExpenses,
+                  onAddRevenue: function () {
+                    setActiveModals(function (p) {
+                      return Object.assign({}, p, { revenue: true });
+                    });
+                  },
+                  onAddExpense: function () {
+                    openExpenseModalForCreate(false);
+                  },
+                  onEditRevenue: openRevenueModalForEdit,
+                  onDeleteRevenue: handleDeleteRevenue,
+                  onEditExpense: openExpenseModalForEdit,
+                  onDeleteExpense: handleDeleteExpense,
+                }),
+              activeTab === "pendings" &&
+                React.createElement(CarPendingsTab, {
+                  pendings: filteredPendings,
+                  searchQuery: searchQuery,
+                  onSearchChange: setSearchQuery,
+                  onMarkPaid: function (p) {
+                    handleChangePendencyStatus(p, "paid");
+                  },
+                  onReopen: function (p) {
+                    handleChangePendencyStatus(p, "open");
+                  },
+                  onEdit: openPendencyModalForEdit,
+                  onDelete: handleDeletePendency,
+                  formatDate: formatDate,
+                  formatCurrency: formatCurrency,
+                }),
+              activeTab === "maintenance" &&
+                React.createElement(CarMaintenanceTab, {
+                  maintenanceExpenses: maintenanceExpenses,
+                  searchQuery: searchQuery,
+                  onSearchChange: setSearchQuery,
+                  onEditExpense: openExpenseModalForEdit,
+                  onDeleteExpense: handleDeleteExpense,
+                }),
+              activeTab === "services" &&
+                React.createElement(CarServicesTab, {
+                  services: services,
+                  onEditService: openServiceModalForEdit,
+                  onDeleteService: handleDeleteService,
+                }),
+              activeTab === "reminders" &&
+                React.createElement(CarRemindersTab, {
+                  reminders: reminders,
+                  isAdmin: isAdmin,
+                  onAction: handleReminderAction,
+                })
+            )
+          )
+        ),
+        React.createElement(CarModalsManager, {
+          isAdmin: isAdmin,
+          activeModals: activeModals,
+          setActiveModals: setActiveModals,
+          modalData: modalData,
+          setModalData: setModalData,
+          drivers: drivers,
+          maintenanceItems: maintenanceItems,
+          workshops: workshops,
+          companyId: companyId,
+          expenseModalConfig: expenseModalConfig,
+          expenseToEdit: expenseToEdit,
+          setExpenseToEdit: setExpenseToEdit,
+          serviceToEdit: serviceToEdit,
+          setServiceToEdit: setServiceToEdit,
+          revenueToEdit: revenueToEdit,
+          setRevenueToEdit: setRevenueToEdit,
+          pendencyToEdit: pendencyToEdit,
+          setPendencyToEdit: setPendencyToEdit,
+          selectedCar: selectedCar,
+          viewingChecklistData: viewingChecklistData,
+          setViewingChecklistData: setViewingChecklistData,
+          db: db,
+          basePath: basePath,
+          storage: storage,
+          user: user,
+          showAlert: showAlert,
+          handleSaveCar: handleSaveCar,
+          handleSaveExpense: handleSaveExpense,
+          handleCreateMaintenanceItem: createMaintenanceItem,
+          handleSavePendency: handleSavePendency,
+          handleSaveService: handleSaveService,
+          handleSaveRevenue: handleSaveRevenue,
+          handleSaveReminder: saveReminder,
+          confirmDeleteCar: confirmDeleteCar,
+          confirmDeleteChecklist: confirmDeleteChecklist,
+        })
+      )
+    );
   };
 
-  const confirmDeleteCar = async () => {
-    try {
-      const carToDelete = selectedCar;
-      const subs = ['expenses', 'revenues', 'reminders', 'checklists'];
-      for (const sub of subs) {
-        const col = collection(db, `${basePath}/cars/${carToDelete.id}/${sub}`);
-        const snap = await getDocs(col);
-        await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
-      }
-      await deleteDoc(doc(db, `${basePath}/cars`, carToDelete.id));
-      showAlert('Carro e dados apagados.', 'success');
-      goBack();
-    } catch (e) {
-      showAlert(`Erro ao apagar carro: ${e.code}`, 'error');
-    } finally {
-      setActiveModals((p) => ({ ...p, deleteCar: false }));
-    }
-  };
-
-  if (!selectedCar) return <LoadingSpinner text="A carregar dados do veículo..." />;
-
-  return (
-    <React.Fragment>
-      <div className="p-4 md:p-6 bg-gray-50 min-h-screen">
-        <CarDetailsHeader
-          goBack={goBack}
-          dueReminders={dueReminders}
-          selectedCar={selectedCar}
-          assignedDriver={assignedDriver}
-          isAdmin={isAdmin}
-          user={user}
-          setActiveModals={setActiveModals}
-          setModalData={setModalData}
-        />
-
-        <div className="mt-8 bg-white rounded-xl shadow-lg p-4 sm:p-6">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 border-b">
-            <div className="flex flex-wrap justify-center md:justify-start">
-              <button
-                onClick={() => setActiveTab('checklists')}
-                className={`py-2 px-4 font-semibold border-b-2 transition-colors ${
-                  activeTab === 'checklists' ? 'tab-active' : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
-              >
-                Vistorias
-              </button>
-              {isAdmin && (
-                <button
-                  onClick={() => setActiveTab('financial')}
-                  className={`py-2 px-4 font-semibold border-b-2 transition-colors ${
-                    activeTab === 'financial'
-                      ? 'tab-active'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  Financeiro
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  onClick={() => setActiveTab('maintenance')}
-                  className={`py-2 px-4 font-semibold border-b-2 transition-colors ${
-                    activeTab === 'maintenance'
-                      ? 'tab-active'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  Manutenção
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  onClick={() => setActiveTab('reminders')}
-                  className={`py-2 px-4 font-semibold border-b-2 transition-colors ${
-                    activeTab === 'reminders'
-                      ? 'tab-active'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  Lembretes
-                </button>
-              )}
-            </div>
-            <div className="mt-4 md:mt-0 flex flex-wrap gap-2 justify-center">
-              {isAdmin && activeTab === 'checklists' && (
-                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={openRoutineChecklistForCreate}
-                    className="flex-grow bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 text-sm"
-                  >
-                    <i className="fas fa-clipboard-list mr-2"></i>Vistoria Rotineira
-                  </button>
-                  <button
-                    onClick={openDeliveryChecklistForCreate}
-                    className="flex-grow bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm"
-                  >
-                    <i className="fas fa-key mr-2"></i>Entrega/Devolução
-                  </button>
-                </div>
-              )}
-              {isAdmin && activeTab === 'maintenance' && (
-                <button
-                  onClick={() => openExpenseModalForCreate(true)}
-                  className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm"
-                >
-                  <i className="fas fa-plus mr-2"></i>Adicionar Manutenção
-                </button>
-              )}
-              {isAdmin && activeTab === 'reminders' && (
-                <button
-                  onClick={() => setActiveModals((p) => ({ ...p, reminder: true }))}
-                  className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 text-sm"
-                >
-                  <i className="fas fa-plus mr-2"></i>Criar Lembrete
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            {activeTab === 'checklists' && (
-              <ChecklistsList
-                checklists={visibleChecklists}
-                isAdmin={isAdmin}
-                onView={openChecklistForView}
-                onRequestDelete={(cl) => {
-                  setActiveModals((p) => ({ ...p, deleteChecklist: true }));
-                  setModalData((p) => ({ ...p, checklistToDelete: cl }));
-                }}
-              />
-            )}
-
-            {activeTab === 'financial' && (
-              <div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-green-100 p-4 rounded-lg text-center">
-                    <p className="text-sm text-green-700 font-bold">Total de Receitas</p>
-                    <p className="text-2xl font-extrabold text-green-900">R$ {financialSummary.totalRevenue.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-red-100 p-4 rounded-lg text-center">
-                    <p className="text-sm text-red-700 font-bold">Total de Despesas</p>
-                    <p className="text-2xl font-extrabold text-red-900">R$ {financialSummary.totalExpense.toFixed(2)}</p>
-                  </div>
-                  <div
-                    className={`${
-                      financialSummary.netProfit >= 0 ? 'bg-blue-100' : 'bg-orange-100'
-                    } p-4 rounded-lg text-center`}
-                  >
-                    <p
-                      className={`text-sm ${
-                        financialSummary.netProfit >= 0 ? 'text-blue-700' : 'text-orange-700'
-                      } font-bold`}
-                    >
-                      Lucro / Prejuízo
-                    </p>
-                    <p
-                      className={`text-2xl font-extrabold ${
-                        financialSummary.netProfit >= 0 ? 'text-blue-900' : 'text-orange-900'
-                      }`}
-                    >
-                      R$ {financialSummary.netProfit.toFixed(2)}
-                    </p>
-                    {selectedCar.ownerName && financialSummary.ownerCommission > 0 && (
-                      <p className="text-xs text-gray-600 mt-1">
-                        Comissão de {selectedCar.ownerName}: R$ {financialSummary.ownerCommission.toFixed(2)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                  <button
-                    onClick={() => setActiveModals((p) => ({ ...p, revenue: true }))}
-                    className="flex-1 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 text-sm"
-                  >
-                    <i className="fas fa-plus mr-2"></i>Adicionar Receita
-                  </button>
-                  <button
-                    onClick={() => openExpenseModalForCreate(false)}
-                    className="flex-1 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 text-sm"
-                  >
-                    <i className="fas fa-plus mr-2"></i>Adicionar Despesa
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="font-bold text-lg mb-2">Histórico de Receitas</h3>
-                    <RevenuesTable revenues={revenues} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg mb-2">Histórico de Despesas</h3>
-                    <ExpensesTable expenses={filteredExpenses} onEdit={openExpenseModalForEdit} onDelete={handleDeleteExpense} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'maintenance' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-lg">Histórico de Manutenção</h3>
-                  <span className="text-sm text-gray-500">
-                    {maintenanceExpenses.length} registro(s)
-                  </span>
-                </div>
-                <ExpensesTable expenses={maintenanceExpenses} onEdit={openExpenseModalForEdit} onDelete={handleDeleteExpense} />
-              </div>
-            )}
-
-            {activeTab === 'reminders' && (
-              <RemindersTable reminders={reminders} isAdmin={isAdmin} onAction={handleReminderAction} />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Modals */}
-      <React.Fragment>
-        {isAdmin && activeModals.car && (
-          <CarFormModal
-            car={modalData.carToEdit}
-            onClose={() => setActiveModals((p) => ({ ...p, car: false }))}
-            onSave={handleSaveCar}
-            drivers={drivers}
-          />
-        )}
-        {isAdmin && activeModals.expense && (
-          <ExpenseFormModal
-            onClose={() => {
-              setActiveModals((p) => ({ ...p, expense: false }));
-              setExpenseToEdit(null);
-            }}
-            onSave={handleSaveExpense}
-            defaultCategory={expenseModalConfig.defaultCategory}
-            isCategoryLocked={expenseModalConfig.isCategoryLocked}
-            maintenanceItems={maintenanceItems}
-            workshops={workshops}
-            expenseToEdit={expenseToEdit}
-            companyId={companyId}
-            db={db}
-            basePath={basePath}
-          />
-        )}
-        {isAdmin && activeModals.revenue && (
-          <RevenueFormModal onClose={() => setActiveModals((p) => ({ ...p, revenue: false }))} onSave={handleSaveRevenue} />
-        )}
-        {isAdmin && activeModals.reminder && (
-          <ReminderFormModal onClose={() => setActiveModals((p) => ({ ...p, reminder: false }))} onSave={handleSaveReminder} />
-        )}
-        {isAdmin && activeModals.routineChecklist && (
-          <RoutineChecklistModal
-            onClose={() => setActiveModals((p) => ({ ...p, routineChecklist: false }))}
-            onSave={(d) => {
-              const dataToSave = { ...d, checkedBy: user.email, mileageAtCheck: selectedCar.currentMileage };
-              addDoc(collection(db, `${basePath}/cars/${selectedCar.id}/checklists`), dataToSave)
-                .then(() => {
-                  showAlert('Checklist rotineiro salvo!', 'success');
-                  setActiveModals((p) => ({ ...p, routineChecklist: false }));
-                })
-                .catch(() => showAlert('Erro ao salvar checklist.', 'error'));
-            }}
-            initialData={viewingChecklistData}
-            isViewMode={!!viewingChecklistData}
-          />
-        )}
-        {isAdmin && activeModals.deliveryChecklist && (
-          <DeliveryChecklistModal
-            onClose={() => setActiveModals((p) => ({ ...p, deliveryChecklist: false }))}
-            onSave={(d) => {
-              const dataToSave = {
-                ...d,
-                date: new Date(),
-                mileageAtCheck: selectedCar.currentMileage,
-                checkedBy: user.email,
-              };
-              addDoc(collection(db, `${basePath}/cars/${selectedCar.id}/checklists`), dataToSave)
-                .then(() => {
-                  showAlert('Checklist de Entrega salvo!', 'success');
-                  setActiveModals((p) => ({ ...p, deliveryChecklist: false }));
-                })
-                .catch(() => showAlert('Erro ao salvar checklist.', 'error'));
-            }}
-            carName={selectedCar.name}
-            app={db.app}
-            initialData={viewingChecklistData}
-            isViewMode={!!viewingChecklistData}
-          />
-        )}
-        {activeModals.deleteCar && (
-          <DeleteConfirmationModal
-            onConfirm={confirmDeleteCar}
-            onCancel={() => setActiveModals((p) => ({ ...p, deleteCar: false }))}
-            title="Apagar Veículo"
-            message={`Tem a certeza que deseja apagar o veículo "${selectedCar?.name}"? Todos os seus dados serão perdidos.`}
-          />
-        )}
-        {activeModals.deleteChecklist && (
-          <DeleteConfirmationModal
-            onConfirm={confirmDeleteChecklist}
-            onCancel={() => setActiveModals((p) => ({ ...p, deleteChecklist: false }))}
-            title="Apagar Vistoria"
-            message="Tem a certeza que deseja apagar permanentemente esta vistoria?"
-          />
-        )}
-      </React.Fragment>
-    </React.Fragment>
-  );
-};
-
-window.CarDetailsPage = CarDetailsPage;
+  window.CarDetailsPage = CarDetailsPage;
+})();

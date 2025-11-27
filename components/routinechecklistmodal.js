@@ -1,471 +1,1109 @@
-const RoutineChecklistModal = ({ onClose, onSave, initialData = null, isViewMode = false }) => {
-    const { useState, useEffect } = React;
+﻿;(function () {
+  const { useEffect, useState } = React;
 
+  const RoutineChecklistModal = ({
+    onClose,
+    onSave,
+    initialData = null,
+    isViewMode = false,
+  }) => {
     const defaultChecklist = {
-        oilLevel: 'ok',
-        tirePressure: 'medium',
-        lights: 'ok',
-        cooling: 'ok',
-        brakes: 'ok',
-        suspension: 'ok',
+      // Aparência
+      exterior: "",
+      interior: "",
+      cleanliness: "",
+      // Segurança (aprovado/reprovado)
+      engine: "",
+      lights: "",
+      brakes: "",
+      soundSystem: "",
+      airConditioning: "",
+      suspension: "",
+      // Outros itens
+      documents: "",
+      fuelLevel: "",
+      tireCondition: "",
     };
 
     const defaultTires = {
-        frontLeft: '',
-        frontRight: '',
-        rearLeft: '',
-        rearRight: '',
+      frontLeft: { condition: "", brand: "", treadPercent: "" },
+      frontRight: { condition: "", brand: "", treadPercent: "" },
+      rearLeft: { condition: "", brand: "", treadPercent: "" },
+      rearRight: { condition: "", brand: "", treadPercent: "" },
     };
 
     const [checklist, setChecklist] = useState(defaultChecklist);
     const [tires, setTires] = useState(defaultTires);
-    const [notes, setNotes] = useState({});
-    const [generalDamages, setGeneralDamages] = useState('');
-    const [checklistDate, setChecklistDate] = useState(new Date().toISOString().slice(0, 10));
-    const [photoEvidence, setPhotoEvidence] = useState({ file: null, preview: '', url: '' });
+    const [notes, setNotes] = useState("");
+    const [generalDamages, setGeneralDamages] = useState("");
+
+    const [photoEvidence, setPhotoEvidence] = useState({
+      file: null,
+      preview: "",
+      url: "",
+    });
+
     const [damages, setDamages] = useState([]);
     const [isDamageModalOpen, setIsDamageModalOpen] = useState(false);
-    const [damageDraft, setDamageDraft] = useState({ id: null, location: '', description: '', photoFile: null, photoPreview: '', photoURL: '' });
+    const [damageDraft, setDamageDraft] = useState({
+      id: null,
+      location: "",
+      description: "",
+      estimatedCost: "",
+      responsibleType: "driver",
+      photoFile: null,
+      photoPreview: "",
+      photoURL: "",
+    });
 
+    const [tireBrands, setTireBrands] = useState([
+      "Pirelli",
+      "Michelin",
+      "Goodyear",
+      "Bridgestone",
+    ]);
+    const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+    const [brandTargetTireKey, setBrandTargetTireKey] = useState(null);
+    const [newBrandName, setNewBrandName] = useState("");
+
+    // Novo: motivos de reprovação por item de segurança
+    const [rejectionDetails, setRejectionDetails] = useState({});
+    const [isRejectionModalOpen, setIsRejectionModalOpen] = useState(false);
+    const [currentRejectedField, setCurrentRejectedField] = useState(null);
+    const [currentRejectionText, setCurrentRejectionText] = useState("");
+
+    const [isSaving, setIsSaving] = useState(false);
+    const isDisabled = isViewMode || isSaving;
+
+    const APPEARANCE_ITEMS = [
+      { key: "exterior", label: "Exterior" },
+      { key: "interior", label: "Interior" },
+      { key: "cleanliness", label: "Limpeza" },
+    ];
+
+    const SAFETY_ITEMS = [
+      { key: "engine", label: "Motor" },
+      { key: "lights", label: "Luzes" },
+      { key: "brakes", label: "Freios" },
+      { key: "soundSystem", label: "Som" },
+      { key: "airConditioning", label: "Ar Condicionado" },
+      { key: "suspension", label: "Suspensão" },
+    ];
+
+    const OTHER_ITEMS = [
+      { key: "documents", label: "Documentos" },
+      { key: "fuelLevel", label: "Nível de Combustível" },
+      { key: "tireCondition", label: "Condição Geral dos Pneus" },
+    ];
+
+    const getSafetyLabel = (fieldKey) => {
+      const found = SAFETY_ITEMS.find((i) => i.key === fieldKey);
+      return found ? found.label : fieldKey;
+    };
+
+    // Carregar dados iniciais (edição/visualização)
     useEffect(() => {
-        if (!initialData) {
-            setChecklist(defaultChecklist);
-            setTires(defaultTires);
-            setNotes({});
-            setGeneralDamages('');
-            setPhotoEvidence({ file: null, preview: '', url: '' });
-            setDamages([]);
-            setChecklistDate(new Date().toISOString().slice(0, 10));
-            return;
-        }
+      if (initialData) {
+        setChecklist({
+          ...defaultChecklist,
+          ...initialData.checklist,
+        });
 
-        setChecklist(initialData.checklist || defaultChecklist);
-        setTires(initialData.tires || defaultTires);
-        setNotes(initialData.notes || {});
-        setGeneralDamages(initialData.generalDamages || '');
+        const incomingTires = initialData.tires || {};
+        const mergedTires = { ...defaultTires };
 
-        const rawDate = initialData.date;
-        if (rawDate?.seconds) {
-            setChecklistDate(new Date(rawDate.seconds * 1000).toISOString().slice(0, 10));
-        } else if (rawDate instanceof Date) {
-            setChecklistDate(rawDate.toISOString().slice(0, 10));
-        } else {
-            setChecklistDate(new Date().toISOString().slice(0, 10));
-        }
+        ["frontLeft", "frontRight", "rearLeft", "rearRight"].forEach((key) => {
+          const value = incomingTires[key];
+          if (!value) {
+            mergedTires[key] = { ...defaultTires[key] };
+          } else if (typeof value === "string") {
+            mergedTires[key] = {
+              condition: value,
+              brand: "",
+              treadPercent: "",
+            };
+          } else {
+            mergedTires[key] = {
+              condition: value.condition || "",
+              brand: value.brand || "",
+              treadPercent:
+                value.treadPercent !== undefined ? value.treadPercent : "",
+            };
+          }
+        });
 
-        setPhotoEvidence({ file: null, preview: initialData.photoURL || '', url: initialData.photoURL || '' });
+        setTires(mergedTires);
 
-        const mappedDamages = (initialData.damages || []).map((damage, index) => ({
+        setNotes(initialData.notes || "");
+        setGeneralDamages(initialData.generalDamages || "");
+
+        setPhotoEvidence({
+          file: null,
+          preview: initialData.photoURL || "",
+          url: initialData.photoURL || "",
+        });
+
+        const mappedDamages = (initialData.damages || []).map(
+          (damage, index) => ({
             id: damage.id || `damage_${index}_${Date.now()}`,
-            location: damage.location || '',
-            description: damage.description || '',
-            photoURL: damage.photoURL || '',
+            location: damage.location || "",
+            description: damage.description || "",
+            estimatedCost:
+              typeof damage.estimatedCost === "number"
+                ? damage.estimatedCost
+                : damage.estimatedCost
+                ? Number(
+                    String(damage.estimatedCost)
+                      .replace(".", "")
+                      .replace(",", ".")
+                  ) || 0
+                : 0,
+            responsibleType: damage.responsibleType || "driver",
+            photoURL: damage.photoURL || "",
             photoFile: null,
-            photoPreview: damage.photoURL || '',
-        }));
+            photoPreview: damage.photoURL || "",
+          })
+        );
         setDamages(mappedDamages);
+
+        setRejectionDetails(initialData.rejectionDetails || {});
+
+        // enriquecer lista de marcas a partir de pneus existentes
+        const brandsFromData = new Set();
+        Object.values(mergedTires).forEach((t) => {
+          if (t.brand) brandsFromData.add(String(t.brand));
+        });
+        if (brandsFromData.size > 0) {
+          setTireBrands((prev) => {
+            const setAll = new Set(prev);
+            brandsFromData.forEach((b) => setAll.add(b));
+            return Array.from(setAll);
+          });
+        }
+      }
     }, [initialData]);
 
-    const handleChecklistChange = (item, value) => {
-        if (isViewMode) return;
-        setChecklist(prev => ({ ...prev, [item]: value }));
+    const handleChecklistChange = (field, value) => {
+      setChecklist((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
     };
 
-    const handleTireChange = (tire, value) => {
-        if (isViewMode) return;
-        setTires(prev => ({ ...prev, [tire]: value }));
+    const handleSafetyItemChange = (field, value) => {
+      setChecklist((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+
+      if (value === "rejected") {
+        // abrir popup para motivo
+        const existingReason = rejectionDetails[field] || "";
+        setCurrentRejectedField(field);
+        setCurrentRejectionText(existingReason);
+        setIsRejectionModalOpen(true);
+      } else if (value === "approved") {
+        // se voltar pra aprovado, removemos o motivo (se existir)
+        setRejectionDetails((prev) => {
+          if (!prev[field]) return prev;
+          const clone = { ...prev };
+          delete clone[field];
+          return clone;
+        });
+      }
     };
 
-    const handleNoteChange = (item, value) => {
-        if (isViewMode) return;
-        setNotes(prev => ({ ...prev, [item]: value }));
+    const handleTireFieldChange = (tireKey, field, value) => {
+      setTires((prev) => ({
+        ...prev,
+        [tireKey]: {
+          ...prev[tireKey],
+          [field]: value,
+        },
+      }));
     };
 
-    const handlePhotoSelect = (file) => {
-        if (isViewMode) return;
-        if (!file) {
-            setPhotoEvidence({ file: null, preview: '', url: '' });
-            return;
-        }
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setPhotoEvidence({ file, preview: reader.result || '', url: '' });
-        };
-        reader.readAsDataURL(file);
+    const handlePhotoSelect = (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoEvidence({
+          file,
+          preview: e.target.result,
+          url: "",
+        });
+      };
+      reader.readAsDataURL(file);
     };
 
-    const handleRemovePhoto = () => {
-        if (isViewMode) return;
-        setPhotoEvidence({ file: null, preview: '', url: '' });
+    const handleRemoveEvidencePhoto = () => {
+      if (isViewMode) return;
+      setPhotoEvidence({
+        file: null,
+        preview: "",
+        url: "",
+      });
     };
 
     const openDamageModal = () => {
-        if (isViewMode) return;
-        setDamageDraft({ id: null, location: '', description: '', photoFile: null, photoPreview: '', photoURL: '' });
-        setIsDamageModalOpen(true);
+      if (isViewMode) return;
+      setDamageDraft({
+        id: null,
+        location: "",
+        description: "",
+        estimatedCost: "",
+        responsibleType: "driver",
+        photoFile: null,
+        photoPreview: "",
+        photoURL: "",
+      });
+      setIsDamageModalOpen(true);
     };
 
-    const handleDamageDraftChange = (field, value) => {
-        if (isViewMode) return;
-        setDamageDraft(prev => ({ ...prev, [field]: value }));
+    const handleDamagePhotoSelect = (event) => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setDamageDraft((prev) => ({
+          ...prev,
+          photoFile: file,
+          photoPreview: e.target.result,
+          photoURL: "",
+        }));
+      };
+      reader.readAsDataURL(file);
     };
 
-    const handleDamagePhotoSelect = (file) => {
-        if (isViewMode) return;
-        if (!file) {
-            setDamageDraft(prev => ({ ...prev, photoFile: null, photoPreview: '', photoURL: '' }));
-            return;
-        }
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setDamageDraft(prev => ({ ...prev, photoFile: file, photoPreview: reader.result || '', photoURL: '' }));
-        };
-        reader.readAsDataURL(file);
-    };
-
-    const handleSaveDamageDraft = () => {
-        if (isViewMode) return;
-        const location = (damageDraft.location || '').trim();
-        const description = (damageDraft.description || '').trim();
-        if (!location || !description) {
-            alert('Informe o local e a descrição do dano.');
-            return;
-        }
-        const id = damageDraft.id || `damage_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-        setDamages(prev => [...prev, { id, location, description, photoFile: damageDraft.photoFile, photoPreview: damageDraft.photoPreview, photoURL: damageDraft.photoURL }]);
-        setDamageDraft({ id: null, location: '', description: '', photoFile: null, photoPreview: '', photoURL: '' });
-        setIsDamageModalOpen(false);
+    const handleRemoveDamagePhotoDraft = () => {
+      if (isViewMode) return;
+      setDamageDraft((prev) => ({
+        ...prev,
+        photoFile: null,
+        photoPreview: "",
+        photoURL: "",
+      }));
     };
 
     const handleRemoveDamage = (id) => {
-        if (isViewMode) return;
-        setDamages(prev => prev.filter(damage => damage.id !== id));
+      if (isViewMode) return;
+      setDamages((prev) => prev.filter((dmg) => dmg.id !== id));
     };
 
-    const formatDamagePreview = (damage) => damage.photoPreview || damage.photoURL || '';
+    const formatDamagePreview = (damage) => {
+      if (damage.photoPreview) return damage.photoPreview;
+      if (damage.photoURL) return damage.photoURL;
+      return "";
+    };
 
-    const handleSubmit = () => {
+    const handleSaveDamageDraft = () => {
+      if (isViewMode) return;
+      const location = (damageDraft.location || "").trim();
+      const description = (damageDraft.description || "").trim();
+
+      if (!location || !description) {
+        alert("Informe o local e a descrição do dano.");
+        return;
+      }
+
+      const estimatedCostValue =
+        damageDraft.estimatedCost !== ""
+          ? Number(
+              String(damageDraft.estimatedCost)
+                .replace(".", "")
+                .replace(",", ".")
+            ) || 0
+          : 0;
+
+      const id =
+        damageDraft.id ||
+        `damage_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+
+      setDamages((prev) => [
+        ...prev,
+        {
+          id,
+          location,
+          description,
+          estimatedCost: estimatedCostValue,
+          responsibleType: damageDraft.responsibleType || "driver",
+          photoFile: damageDraft.photoFile,
+          photoPreview: damageDraft.photoPreview,
+          photoURL: damageDraft.photoURL,
+        },
+      ]);
+
+      setDamageDraft({
+        id: null,
+        location: "",
+        description: "",
+        estimatedCost: "",
+        responsibleType: "driver",
+        photoFile: null,
+        photoPreview: "",
+        photoURL: "",
+      });
+      setIsDamageModalOpen(false);
+    };
+
+    const handleSelectBrand = (tireKey, value) => {
+      if (value === "__new") {
+        setBrandTargetTireKey(tireKey);
+        setNewBrandName("");
+        setIsBrandModalOpen(true);
+      } else {
+        handleTireFieldChange(tireKey, "brand", value);
+      }
+    };
+
+    const handleSaveNewBrand = () => {
+      const name = newBrandName.trim();
+      if (!name) return;
+
+      setTireBrands((prev) => {
+        if (prev.includes(name)) return prev;
+        return [...prev, name];
+      });
+
+      if (brandTargetTireKey) {
+        setTires((prev) => ({
+          ...prev,
+          [brandTargetTireKey]: {
+            ...prev[brandTargetTireKey],
+            brand: name,
+          },
+        }));
+      }
+
+      setIsBrandModalOpen(false);
+      setBrandTargetTireKey(null);
+      setNewBrandName("");
+    };
+
+    const handleSubmit = async () => {
+      if (isViewMode) {
+        onClose();
+        return;
+      }
+
+      setIsSaving(true);
+      try {
+        const normalizedTires = Object.fromEntries(
+          Object.entries(tires).map(([key, value]) => [
+            key,
+            {
+              condition: value.condition || "",
+              brand: value.brand || "",
+              treadPercent:
+                value.treadPercent === "" || value.treadPercent == null
+                  ? ""
+                  : Number(value.treadPercent),
+            },
+          ])
+        );
+
         const payload = {
-            date: new Date(`${checklistDate}T12:00:00Z`),
-            checklist,
-            tires,
-            notes,
-            generalDamages,
-            type: 'routine',
-            photoFile: photoEvidence.file,
-            photoURL: photoEvidence.url,
-            damages,
+          checklist,
+          tires: normalizedTires,
+          notes,
+          generalDamages,
+          photoFile: photoEvidence.file || null,
+          photoURL: photoEvidence.url || "",
+          damages,
+          rejectionDetails,
+          type: "routine",
+          date: initialData?.date || new Date().toISOString().slice(0, 10),
         };
-        onSave(payload);
-    };
 
-    const CheckItem = ({ label, itemKey }) => (
-        <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <span className="font-semibold text-gray-800">{label}</span>
-            <div className="flex gap-2">
-                <button
-                    disabled={isViewMode}
-                    onClick={() => handleChecklistChange(itemKey, 'ok')}
-                    className={`px-4 py-1 text-sm rounded-full transition ${
-                        checklist[itemKey] === 'ok' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'
-                    } disabled:opacity-60`}
-                >
-                    OK
-                </button>
-                <button
-                    disabled={isViewMode}
-                    onClick={() => handleChecklistChange(itemKey, 'problem')}
-                    className={`px-4 py-1 text-sm rounded-full transition ${
-                        checklist[itemKey] === 'problem' ? 'bg-red-500 text-white' : 'bg-gray-200 text-gray-700'
-                    } disabled:opacity-60`}
-                >
-                    Problema
-                </button>
-            </div>
-        </div>
-    );
+        await onSave(payload);
+        onClose();
+      } catch (error) {
+        console.error("Erro ao salvar checklist de rotina:", error);
+        alert("Erro ao salvar checklist. Tente novamente.");
+      } finally {
+        setIsSaving(false);
+      }
+    };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto">
-                <header className="px-6 md:px-8 pt-6 md:pt-8 pb-4 border-b border-gray-200 sticky top-0 bg-white z-10">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-4">{isViewMode ? 'Detalhes da Vistoria' : 'Checklist Rotineiro de Vistoria'}</h2>
-                    <div className="max-w-xs">
-                        <label className="block text-sm font-medium text-gray-700">Data da Vistoria</label>
-                        <input
-                            type="date"
-                            value={checklistDate}
-                            onChange={(e) => handleDateChange(e.target.value)}
-                            disabled={isViewMode}
-                            className="mt-1 w-full rounded-lg border border-gray-300 bg-white p-2 shadow-sm disabled:bg-gray-100"
-                        />
-                    </div>
-                </header>
+      <div className="fixed inset-0 z-30 flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-4 shadow-2xl md:p-6 lg:p-8">
+          {/* Cabeçalho */}
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-800 md:text-2xl">
+              Vistoria Rotineira
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <i className="fas fa-times" />
+            </button>
+          </div>
 
-                <div className="px-6 md:px-8 pb-6 md:pb-8 space-y-6">
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.15fr,0.85fr]">
-                        <div className="space-y-4">
-                            <CheckItem label="Nível do óleo" itemKey="oilLevel" />
-                            {checklist.oilLevel === 'problem' && (
-                                <textarea
-                                    readOnly={isViewMode}
-                                    value={notes.oilLevel || ''}
-                                    onChange={(e) => handleNoteChange('oilLevel', e.target.value)}
-                                    placeholder="Descreva o problema com o óleo..."
-                                    className="w-full rounded-lg border border-red-200 bg-red-50 p-2"
-                                    rows="2"
-                                />
-                            )}
+          <p className="mb-4 text-sm text-gray-600">
+            Registre o estado geral do veículo, incluindo aparência, itens de
+            segurança, pneus e danos.
+          </p>
 
-                            <CheckItem label="Luzes" itemKey="lights" />
-                            {checklist.lights === 'problem' && (
-                                <textarea
-                                    readOnly={isViewMode}
-                                    value={notes.lights || ''}
-                                    onChange={(e) => handleNoteChange('lights', e.target.value)}
-                                    placeholder="Quais luzes apresentam problema?"
-                                    className="w-full rounded-lg border border-red-200 bg-red-50 p-2"
-                                    rows="2"
-                                />
-                            )}
-
-                            <CheckItem label="Arrefecimento" itemKey="cooling" />
-                            {checklist.cooling === 'problem' && (
-                                <textarea
-                                    readOnly={isViewMode}
-                                    value={notes.cooling || ''}
-                                    onChange={(e) => handleNoteChange('cooling', e.target.value)}
-                                    placeholder="Descreva o problema..."
-                                    className="w-full rounded-lg border border-red-200 bg-red-50 p-2"
-                                    rows="2"
-                                />
-                            )}
-
-                            <CheckItem label="Freios" itemKey="brakes" />
-                            {checklist.brakes === 'problem' && (
-                                <textarea
-                                    readOnly={isViewMode}
-                                    value={notes.brakes || ''}
-                                    onChange={(e) => handleNoteChange('brakes', e.target.value)}
-                                    placeholder="Descreva o problema com os freios..."
-                                    className="w-full rounded-lg border border-red-200 bg-red-50 p-2"
-                                    rows="2"
-                                />
-                            )}
-
-                            <CheckItem label="Suspensão" itemKey="suspension" />
-                            {checklist.suspension === 'problem' && (
-                                <textarea
-                                    readOnly={isViewMode}
-                                    value={notes.suspension || ''}
-                                    onChange={(e) => handleNoteChange('suspension', e.target.value)}
-                                    placeholder="Descreva o problema na suspensão..."
-                                    className="w-full rounded-lg border border-red-200 bg-red-50 p-2"
-                                    rows="2"
-                                />
-                            )}
-                        </div>
-
-                        <div className="space-y-4">
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 shadow-sm">
-                                <h3 className="mb-3 font-semibold text-gray-700">Pneus</h3>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-600 mb-2">Pressão geral</label>
-                                    <select
-                                        value={checklist.tirePressure}
-                                        onChange={(e) => handleChecklistChange('tirePressure', e.target.value)}
-                                        disabled={isViewMode}
-                                        className="w-full rounded-lg border border-gray-200 p-2 disabled:bg-gray-200"
-                                    >
-                                        <option value="low">Baixa</option>
-                                        <option value="medium">Média / OK</option>
-                                        <option value="high">Alta</option>
-                                    </select>
-                                </div>
-                                <div className="mt-4">
-                                    <label className="block text-sm font-medium text-gray-600 mb-2">Estado de desgaste (TWI %)</label>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <input readOnly={isViewMode} type="number" placeholder="DD (%)" value={tires.frontRight} onChange={(e) => handleTireChange('frontRight', e.target.value)} className="w-full rounded-lg border border-gray-200 p-2" title="Dianteiro Direito" />
-                                        <input readOnly={isViewMode} type="number" placeholder="DE (%)" value={tires.frontLeft} onChange={(e) => handleTireChange('frontLeft', e.target.value)} className="w-full rounded-lg border border-gray-200 p-2" title="Dianteiro Esquerdo" />
-                                        <input readOnly={isViewMode} type="number" placeholder="TD (%)" value={tires.rearRight} onChange={(e) => handleTireChange('rearRight', e.target.value)} className="w-full rounded-lg border border-gray-200 p-2" title="Traseiro Direito" />
-                                        <input readOnly={isViewMode} type="number" placeholder="TE (%)" value={tires.rearLeft} onChange={(e) => handleTireChange('rearLeft', e.target.value)} className="w-full rounded-lg border border-gray-200 p-2" title="Traseiro Esquerdo" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 shadow-sm">
-                                <label className="block font-semibold text-gray-700 mb-2">Observações de danos na lataria</label>
-                                <textarea
-                                    readOnly={isViewMode}
-                                    value={generalDamages}
-                                    onChange={(e) => setGeneralDamages(e.target.value)}
-                                    placeholder="Descreva qualquer novo dano encontrado..."
-                                    className="w-full rounded-lg border border-gray-200 bg-white p-3"
-                                    rows="4"
-                                />
-                            </div>
-
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 shadow-sm space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <span className="font-semibold text-gray-700">Danos registrados</span>
-                                    {!isViewMode && (
-                                        <button type="button" onClick={openDamageModal} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white shadow hover:bg-blue-700">
-                                            <i className="fas fa-plus" /> Adicionar dano
-                                        </button>
-                                    )}
-                                </div>
-                                {damages.length > 0 ? (
-                                    <ul className="space-y-2">
-                                        {damages.map(damage => (
-                                            <li key={damage.id} className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
-                                                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                                                    <div>
-                                                        <p className="font-semibold text-gray-800">{damage.location}</p>
-                                                        <p className="text-sm text-gray-600">{damage.description}</p>
-                                                        {formatDamagePreview(damage) && (
-                                                            <a href={damage.photoURL || damage.photoPreview} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:underline">
-                                                                <i className="fas fa-camera" /> Ver foto
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                    {!isViewMode && (
-                                                        <button type="button" onClick={() => handleRemoveDamage(damage.id)} className="text-sm font-semibold text-red-600 hover:text-red-700">
-                                                            Remover
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-sm text-gray-500">Nenhum dano registrado.</p>
-                                )}
-                            </div>
-
-                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 shadow-sm">
-                                <label className="block font-semibold text-gray-700 mb-2">Registro fotográfico (opcional)</label>
-                                {photoEvidence.preview ? (
-                                    <div className="space-y-3">
-                                        <div className="w-full overflow-hidden rounded-lg border border-gray-200">
-                                            <img src={photoEvidence.preview} alt="Registro da vistoria" className="h-48 w-full object-cover" />
-                                        </div>
-                                        {!isViewMode && (
-                                            <div className="flex gap-3">
-                                                <button type="button" onClick={handleRemovePhoto} className="flex-1 rounded-lg bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-600">
-                                                    Remover foto
-                                                </button>
-                                                <label className="flex-1 cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-center font-semibold text-white hover:bg-blue-700">
-                                                    Trocar foto
-                                                    <input type="file" accept="image/*" capture="environment" onChange={(e) => handlePhotoSelect(e.target.files?.[0] || null)} className="hidden" />
-                                                </label>
-                                            </div>
-                                        )}
-                                        {isViewMode && photoEvidence.url && (
-                                            <a href={photoEvidence.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:underline">
-                                                <i className="fas fa-external-link-alt" /> Ver foto em uma nova aba
-                                            </a>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className={isViewMode ? 'text-sm text-gray-500' : 'rounded-lg border-2 border-dashed border-gray-300 p-4 text-center space-y-2'}>
-                                        {isViewMode ? (
-                                            <p className="text-sm">Nenhuma foto anexada a esta vistoria.</p>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                <p className="text-sm text-gray-600">Capture ou selecione uma foto do dispositivo para complementar a vistoria.</p>
-                                                <label className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 cursor-pointer">
-                                                    <i className="fas fa-camera" /> Adicionar foto
-                                                    <input type="file" accept="image/*" capture="environment" onChange={(e) => handlePhotoSelect(e.target.files?.[0] || null)} className="hidden" />
-                                                </label>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-3 border-t border-gray-200 pt-6 sm:flex-row">
-                        <button onClick={onClose} className="w-full rounded-lg bg-gray-500 px-6 py-3 font-bold text-white hover:bg-gray-600">
-                            {isViewMode ? 'Fechar' : 'Cancelar'}
-                        </button>
-                        {!isViewMode && (
-                            <button onClick={handleSubmit} className="w-full rounded-lg bg-blue-800 px-6 py-3 font-bold text-white hover:bg-blue-900">
-                                Salvar Checklist
-                            </button>
-                        )}
-                    </div>
-                </div>
+          <div className="space-y-6">
+            {/* Aparência: Interior / Exterior / Limpeza */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-700">
+                Aparência do Veículo
+              </h3>
+              <p className="mb-3 text-xs text-gray-500">
+                Avalie separadamente interior, exterior e limpeza.
+              </p>
+              <div className="grid gap-3 md:grid-cols-3">
+                {APPEARANCE_ITEMS.map((item) => (
+                  <div key={item.key} className="flex flex-col space-y-1">
+                    <label className="text-xs font-semibold text-gray-700">
+                      {item.label}
+                    </label>
+                    <select
+                      value={checklist[item.key]}
+                      onChange={(e) =>
+                        handleChecklistChange(item.key, e.target.value)
+                      }
+                      disabled={isDisabled}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="excellent">Excelente</option>
+                      <option value="good">Bom</option>
+                      <option value="regular">Regular</option>
+                      <option value="bad">Ruim</option>
+                      <option value="terrible">Péssimo</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {isDamageModalOpen && !isViewMode && (
-                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-60 p-4">
-                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-                        <div className="space-y-1">
-                            <h3 className="text-xl font-bold text-gray-800">Registrar novo dano</h3>
-                            <p className="text-sm text-gray-500">Informe o local afetado, descreva o dano e anexe uma foto.</p>
-                        </div>
+            {/* Checklist de Segurança (Aprovado / Reprovado) */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-700">
+                Itens de Segurança (Aprovado / Reprovado)
+              </h3>
+              <p className="mb-3 text-xs text-gray-500">
+                Caso algum item seja reprovado, será solicitado o motivo para
+                gerar os apontamentos corretos.
+              </p>
+              <div className="grid gap-3 md:grid-cols-3">
+                {SAFETY_ITEMS.map((item) => (
+                  <div key={item.key} className="flex flex-col space-y-1">
+                    <label className="text-xs font-semibold text-gray-700">
+                      {item.label}
+                    </label>
+                    <select
+                      value={checklist[item.key]}
+                      onChange={(e) =>
+                        handleSafetyItemChange(item.key, e.target.value)
+                      }
+                      disabled={isDisabled}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="approved">Aprovado</option>
+                      <option value="rejected">Reprovado</option>
+                    </select>
+                    {rejectionDetails[item.key] && (
+                      <p className="mt-1 text-[11px] text-red-600">
+                        Motivo: {rejectionDetails[item.key]}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
 
-                        <div className="mt-4 space-y-4">
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-gray-700">Local do dano</label>
-                                <input
-                                    type="text"
-                                    value={damageDraft.location}
-                                    onChange={(e) => handleDamageDraftChange('location', e.target.value)}
-                                    className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                    placeholder="Ex.: Porta dianteira esquerda"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-gray-700">Descrição</label>
-                                <textarea
-                                    value={damageDraft.description}
-                                    onChange={(e) => handleDamageDraftChange('description', e.target.value)}
-                                    rows="3"
-                                    className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                    placeholder="Detalhes do dano"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-2 block text-sm font-medium text-gray-700">Foto do dano</label>
-                                {damageDraft.photoPreview ? (
-                                    <div className="space-y-3">
-                                        <div className="overflow-hidden rounded-lg border border-gray-200">
-                                            <img src={damageDraft.photoPreview} alt="Foto do dano" className="h-48 w-full object-cover" />
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button type="button" onClick={() => handleDamagePhotoSelect(null)} className="flex-1 rounded-lg bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-600">
-                                                Remover foto
-                                            </button>
-                                            <label className="flex-1 cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-center font-semibold text-white hover:bg-blue-700">
-                                                Trocar foto
-                                                <input type="file" accept="image/*" capture="environment" onChange={(e) => handleDamagePhotoSelect(e.target.files?.[0] || null)} className="hidden" />
-                                            </label>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">
-                                        <i className="fas fa-camera" /> Selecionar foto
-                                        <input type="file" accept="image/*" capture="environment" onChange={(e) => handleDamagePhotoSelect(e.target.files?.[0] || null)} className="hidden" />
-                                    </label>
-                                )}
-                            </div>
-                        </div>
+            {/* Outros itens: Documentos, Combustível, Condição geral dos pneus */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-700">
+                Outros Itens
+              </h3>
+              <p className="mb-3 text-xs text-gray-500">
+                Avalie documentos, nível de combustível e condição geral dos
+                pneus.
+              </p>
+              <div className="grid gap-3 md:grid-cols-3">
+                {OTHER_ITEMS.map((item) => (
+                  <div key={item.key} className="flex flex-col space-y-1">
+                    <label className="text-xs font-semibold text-gray-700">
+                      {item.label}
+                    </label>
+                    <select
+                      value={checklist[item.key]}
+                      onChange={(e) =>
+                        handleChecklistChange(item.key, e.target.value)
+                      }
+                      disabled={isDisabled}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option value="">Selecione</option>
+                      <option value="ok">OK</option>
+                      <option value="attention">Atenção</option>
+                      <option value="critical">Crítico</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
 
-                        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                            <button type="button" onClick={() => setIsDamageModalOpen(false)} className="w-full rounded-lg bg-gray-500 px-4 py-2 font-bold text-white hover:bg-gray-600">
-                                Cancelar
-                            </button>
-                            <button type="button" onClick={handleSaveDamageDraft} className="w-full rounded-lg bg-blue-800 px-4 py-2 font-bold text-white hover:bg-blue-900">
-                                Adicionar dano
-                            </button>
-                        </div>
+            {/* Pneus detalhados */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-700">
+                Condição dos Pneus (Detalhado)
+              </h3>
+              <div className="grid gap-4 md:grid-cols-2">
+                {[
+                  { key: "frontLeft", label: "Dianteiro Esquerdo" },
+                  { key: "frontRight", label: "Dianteiro Direito" },
+                  { key: "rearLeft", label: "Traseiro Esquerdo" },
+                  { key: "rearRight", label: "Traseiro Direito" },
+                ].map((tire) => (
+                  <div
+                    key={tire.key}
+                    className="rounded-lg bg-white p-3 shadow-sm border border-gray-200"
+                  >
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700">
+                      {tire.label}
+                    </p>
+
+                    <div className="mb-2">
+                      <label className="mb-1 block text-[11px] font-semibold text-gray-600">
+                        Condição
+                      </label>
+                      <select
+                        value={tires[tire.key].condition}
+                        onChange={(e) =>
+                          handleTireFieldChange(
+                            tire.key,
+                            "condition",
+                            e.target.value
+                          )
+                        }
+                        disabled={isDisabled}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="">Selecione</option>
+                        <option value="good">Bom</option>
+                        <option value="worn">Gasto</option>
+                        <option value="needs-replacement">Substituir</option>
+                      </select>
                     </div>
-                </div>
-            )}
-        </div>
-    );
-};
 
-window.RoutineChecklistModal = RoutineChecklistModal;
+                    <div className="mb-2">
+                      <label className="mb-1 block text-[11px] font-semibold text-gray-600">
+                        Marca
+                      </label>
+                      <select
+                        value={tires[tire.key].brand}
+                        onChange={(e) =>
+                          handleSelectBrand(tire.key, e.target.value)
+                        }
+                        disabled={isDisabled}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      >
+                        <option value="">Selecione marca</option>
+                        {tireBrands.map((b) => (
+                          <option key={b} value={b}>
+                            {b}
+                          </option>
+                        ))}
+                        <option value="__new">+ Adicionar nova marca</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-[11px] font-semibold text-gray-600">
+                        % de vida estimada
+                      </label>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={tires[tire.key].treadPercent}
+                          onChange={(e) =>
+                            handleTireFieldChange(
+                              tire.key,
+                              "treadPercent",
+                              e.target.value
+                            )
+                          }
+                          disabled={isDisabled}
+                          className="w-full rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Ex: 70"
+                        />
+                        <span className="text-xs text-gray-500">%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Observações gerais */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-700">
+                Observações Gerais
+              </h3>
+              <textarea
+                rows={3}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                disabled={isDisabled}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Registre qualquer observação adicional sobre o veículo..."
+              />
+            </div>
+
+            {/* Foto geral do veículo */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-700">
+                Foto Geral do Veículo (opcional)
+              </h3>
+              <div className="flex items-center gap-3">
+                {!isViewMode && (
+                  <label className="inline-flex cursor-pointer items-center rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+                    <i className="fas fa-camera mr-2" />
+                    {photoEvidence.preview || photoEvidence.url
+                      ? "Trocar foto"
+                      : "Adicionar foto"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handlePhotoSelect}
+                      disabled={isDisabled}
+                    />
+                  </label>
+                )}
+
+                {(photoEvidence.preview || photoEvidence.url) && (
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={photoEvidence.preview || photoEvidence.url}
+                      alt="Foto da vistoria"
+                      className="h-16 w-16 rounded object-cover"
+                    />
+                    {!isViewMode && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveEvidencePhoto}
+                        className="text-xs font-semibold text-red-600 hover:text-red-700"
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Danos gerais + lista de danos individuais */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+                  Danos Gerais Observados
+                </h3>
+                {!isViewMode && (
+                  <button
+                    type="button"
+                    onClick={openDamageModal}
+                    className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                  >
+                    <i className="fas fa-plus mr-1" />
+                    Adicionar dano
+                  </button>
+                )}
+              </div>
+
+              <textarea
+                rows={2}
+                value={generalDamages}
+                onChange={(e) => setGeneralDamages(e.target.value)}
+                disabled={isDisabled}
+                className="mb-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Descrição geral dos danos (se houver)..."
+              />
+
+              {damages.length > 0 && (
+                <div className="mt-3">
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700">
+                    Danos registrados
+                  </h4>
+                  <ul className="space-y-2">
+                    {damages.map((damage) => (
+                      <li
+                        key={damage.id}
+                        className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm"
+                      >
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="font-semibold text-gray-800">
+                              {damage.location}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {damage.description}
+                            </p>
+
+                            <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                              <span>
+                                Valor estimado:{" "}
+                                <strong>
+                                  {damage.estimatedCost
+                                    ? `R$ ${damage.estimatedCost.toFixed(2)}`
+                                    : "—"}
+                                </strong>
+                              </span>
+                              <span>
+                                Responsável:{" "}
+                                <strong>
+                                  {damage.responsibleType === "company"
+                                    ? "Locadora"
+                                    : "Motorista"}
+                                </strong>
+                              </span>
+                            </div>
+
+                            {formatDamagePreview(damage) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const src =
+                                    damage.photoPreview || damage.photoURL;
+                                  if (src) window.open(src, "_blank");
+                                }}
+                                className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:underline"
+                              >
+                                <i className="fas fa-camera" /> Ver foto
+                              </button>
+                            )}
+                          </div>
+
+                          {!isViewMode && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDamage(damage.id)}
+                              className="text-sm font-semibold text-red-600 hover:text-red-700"
+                            >
+                              Remover
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Rodapé */}
+          <div className="mt-6 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSaving}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            {!isViewMode && (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={isSaving}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {isSaving ? "Salvando..." : "Salvar Vistoria"}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* MODAL DE DANO INDIVIDUAL */}
+        {isDamageModalOpen && !isViewMode && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+              <h3 className="text-lg font-bold text-gray-800">
+                Registrar dano do veículo
+              </h3>
+
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">
+                    Local do dano
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={damageDraft.location}
+                    onChange={(e) =>
+                      setDamageDraft((prev) => ({
+                        ...prev,
+                        location: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">
+                    Descrição do dano
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={damageDraft.description}
+                    onChange={(e) =>
+                      setDamageDraft((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">
+                    Valor estimado do dano
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Ex: 500,00"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    value={damageDraft.estimatedCost}
+                    onChange={(e) =>
+                      setDamageDraft((prev) => ({
+                        ...prev,
+                        estimatedCost: e.target.value,
+                      }))
+                    }
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Esse valor será usado depois para gerar a pendência do
+                    motorista, se aplicável.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
+                    Responsável pelo dano
+                  </p>
+                  <div className="flex gap-4 text-sm">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        className="h-4 w-4"
+                        value="driver"
+                        checked={damageDraft.responsibleType === "driver"}
+                        onChange={() =>
+                          setDamageDraft((prev) => ({
+                            ...prev,
+                            responsibleType: "driver",
+                          }))
+                        }
+                      />
+                      <span>Motorista</span>
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="radio"
+                        className="h-4 w-4"
+                        value="company"
+                        checked={damageDraft.responsibleType === "company"}
+                        onChange={() =>
+                          setDamageDraft((prev) => ({
+                            ...prev,
+                            responsibleType: "company",
+                          }))
+                        }
+                      />
+                      <span>Locadora</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
+                    Foto do dano (opcional)
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <label className="inline-flex cursor-pointer items-center rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-200">
+                      <i className="fas fa-camera mr-2" />
+                      {damageDraft.photoPreview ? "Trocar foto" : "Adicionar foto"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleDamagePhotoSelect}
+                      />
+                    </label>
+
+                    {damageDraft.photoPreview && (
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={damageDraft.photoPreview}
+                          alt="Pré-visualização do dano"
+                          className="h-12 w-12 rounded object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleRemoveDamagePhotoDraft}
+                          className="text-xs font-semibold text-red-600 hover:text-red-700"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsDamageModalOpen(false)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDamageDraft}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Salvar dano
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL PARA ADICIONAR NOVA MARCA DE PNEU */}
+        {isBrandModalOpen && !isViewMode && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl">
+              <h3 className="text-base font-bold text-gray-800">
+                Adicionar nova marca de pneu
+              </h3>
+              <p className="mt-1 text-xs text-gray-500">
+                Essa marca ficará disponível para os demais pneus nas próximas
+                vistorias.
+              </p>
+              <div className="mt-3">
+                <label className="mb-1 block text-xs font-semibold text-gray-700">
+                  Nome da marca
+                </label>
+                <input
+                  type="text"
+                  value={newBrandName}
+                  onChange={(e) => setNewBrandName(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Ex: Continental"
+                />
+              </div>
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsBrandModalOpen(false);
+                    setBrandTargetTireKey(null);
+                    setNewBrandName("");
+                  }}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveNewBrand}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Salvar marca
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DE MOTIVO DE REPROVAÇÃO POR ITEM */}
+        {isRejectionModalOpen && currentRejectedField && !isViewMode && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black bg-opacity-40 p-4">
+            <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl">
+              <h3 className="text-base font-bold text-gray-800">
+                Motivo da reprovação — {getSafetyLabel(currentRejectedField)}
+              </h3>
+              <p className="mt-1 text-xs text-gray-500">
+                Descreva o problema encontrado nesse item. Depois podemos usar
+                essa informação para gerar lembretes ou orçamentos.
+              </p>
+              <div className="mt-3">
+                <textarea
+                  rows={4}
+                  value={currentRejectionText}
+                  onChange={(e) => setCurrentRejectionText(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Ex: Vazamento de óleo no motor, ruído anormal na suspensão..."
+                />
+              </div>
+              <div className="mt-5 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hadPrevious =
+                      !!rejectionDetails[currentRejectedField];
+                    if (!hadPrevious) {
+                      // se não tinha motivo salvo e o usuário cancelar, voltamos o item para Aprovado
+                      setChecklist((prev) => ({
+                        ...prev,
+                        [currentRejectedField]: "approved",
+                      }));
+                    }
+                    setIsRejectionModalOpen(false);
+                    setCurrentRejectedField(null);
+                    setCurrentRejectionText("");
+                  }}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = currentRejectionText.trim();
+                    if (!text) {
+                      alert("Descreva o motivo da reprovação.");
+                      return;
+                    }
+                    setRejectionDetails((prev) => ({
+                      ...prev,
+                      [currentRejectedField]: text,
+                    }));
+                    setIsRejectionModalOpen(false);
+                    setCurrentRejectedField(null);
+                    setCurrentRejectionText("");
+                  }}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  window.RoutineChecklistModal = RoutineChecklistModal;
+})();
