@@ -14,10 +14,12 @@
       lastOilChange: "",
       oilChangeInterval: "",
       avgConsumption: "",
+      purchaseValue: "", // <<< NOVO: valor de compra do veículo
+
       // Comissão SEMPRE da empresa:
       companyCommissionMode: "percentage", // 'percentage' | 'fixed'
-      commissionPercentage: "",            // % do lucro para a empresa
-      companyFixedCommission: "",          // valor fixo para a empresa
+      commissionPercentage: "",
+      companyFixedCommission: "",
     });
 
     useEffect(() => {
@@ -39,6 +41,9 @@
             car.oilChangeInterval != null ? String(car.oilChangeInterval) : "",
           avgConsumption:
             car.avgConsumption != null ? String(car.avgConsumption) : "",
+          purchaseValue:
+            car.purchaseValue != null ? String(car.purchaseValue) : "",
+
           companyCommissionMode: car.companyCommissionMode || "percentage",
           commissionPercentage:
             car.commissionPercentage != null
@@ -97,19 +102,24 @@
         plate: formData.plate.trim().toUpperCase(),
         brand: formData.brand.trim(),
         model: formData.model.trim(),
-        year: formData.year.trim(),
+        year: String(formData.year || "").trim(),
         color: formData.color.trim(),
         ownerName: formData.ownerName.trim(),
         currentMileage: Number(formData.currentMileage || 0),
         lastOilChange: Number(formData.lastOilChange || 0),
         oilChangeInterval: Number(formData.oilChangeInterval || 0),
-        avgConsumption: Number(formData.avgConsumption || 0),
+        avgConsumption: Number(
+          String(formData.avgConsumption || "0").replace(",", ".")
+        ),
+        purchaseValue: Number(
+          String(formData.purchaseValue || "0").replace(",", ".")
+        ),
+
         // Comissão para a EMPRESA:
         companyCommissionMode: commissionMode,
         commissionPercentage:
           commissionMode === "percentage" ? percentNum : 0,
-        companyFixedCommission:
-          commissionMode === "fixed" ? fixedNum : 0,
+        companyFixedCommission: commissionMode === "fixed" ? fixedNum : 0,
       };
 
       onSave && onSave(payload);
@@ -182,7 +192,7 @@
             />
           </div>
 
-          {/* DADOS OPERACIONAIS */}
+          {/* DADOS OPERACIONAIS + VALOR DE COMPRA */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -234,6 +244,21 @@
                 value={formData.avgConsumption}
                 onChange={handleChange}
                 placeholder="Ex: 10,5"
+                className="w-full bg-gray-100 p-3 rounded-lg border focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Valor de compra do veículo (R$)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                name="purchaseValue"
+                value={formData.purchaseValue}
+                onChange={handleChange}
+                placeholder="Ex: 45.000,00"
                 className="w-full bg-gray-100 p-3 rounded-lg border focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -307,7 +332,7 @@
                     className="w-full bg-gray-100 p-3 rounded-lg border focus:ring-2 focus:ring-blue-500"
                   />
                   <p className="text-[11px] text-gray-500 mt-1">
-                    A empresa recebe esse valor fixo do lucro do carro. 
+                    A empresa recebe esse valor fixo do lucro do carro.
                     O restante é repassado ao proprietário.
                   </p>
                 </div>
